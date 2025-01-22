@@ -2,7 +2,6 @@ import asyncHandler from 'express-async-handler'
 import Student from '../Models/User.js';
 import Staff from '../Models/Staff.js';
 import jwt from 'jsonwebtoken'
-import bcrypt from 'bcrypt'
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
 

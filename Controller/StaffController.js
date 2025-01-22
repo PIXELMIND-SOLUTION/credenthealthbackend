@@ -1,54 +1,52 @@
 import asyncHandler from 'express-async-handler'
 import Student from '../Models/User.js';
 import Staff from '../Models/Staff.js';
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
 
 
-// Staff login
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "your_default_secret_key";
+
+// Staff login without bcrypt
 const loginStaff = async (req, res) => {
-    try {
-      const { email, password } = req.body;
-  
-      // Validate input
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-      }
-  
-      // Find the staff by email
-      const staff = await Staff.findOne({ email });
-      if (!staff) {
-        return res.status(404).json({ message: "Staff not found" });
-      }
-  
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, staff.password);
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-  
-      // Generate JWT token
-      const token = jwt.sign({ id: staff._id, email: staff.email }, JWT_SECRET, {
-        expiresIn: "1d", // Token expiration time
-      });
-  
-      // Respond with token and basic staff info
-      res.status(200).json({
-        message: "Login successful",
-        token,
-        staff: {
-          id: staff._id,
-          fullName: `${staff.firstName} ${staff.lastName}`,
-          email: staff.email,
-          position: staff.position,
-          department: staff.department,
-        },
-      });
-    } catch (error) {
-      console.error("Error during staff login:", error);
-      res.status(500).json({ message: "Internal server error" });
+  try {
+    const { email, password } = req.body;
+
+    // Find the staff by email
+    const staff = await Staff.findOne({ email });
+    if (!staff) {
+      return res.status(404).json({ message: "Staff not found" });
     }
-  };
+
+    // Verify password directly (insecure if passwords are stored in plain text)
+    if (password !== staff.password) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ id: staff._id, email: staff.email }, JWT_SECRET_KEY, {
+      expiresIn: "1d", // Token expiration time
+    });
+
+    // Respond with token and basic staff info
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      staff: {
+        id: staff._id,
+        fullName: `${staff.firstName} ${staff.lastName}`,
+        email: staff.email,
+        position: staff.position,
+        department: staff.department,
+      },
+    });
+  } catch (error) {
+    console.error("Error during staff login:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
   const logoutStaff = async (req, res) => {

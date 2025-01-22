@@ -10,6 +10,7 @@ const staffSchema = new Schema({
   position: { type: String },
   department: { type: String },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+  password: { type: String, }, // Password field
   dateOfBirth: { type: Date },
   address: {
     street: { type: String },

@@ -5,6 +5,7 @@ import Staff from '../Models/Staff.js';
 import Book from '../Models/Book.js';
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
+import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 
 
@@ -117,7 +118,28 @@ const adminLogout = asyncHandler(async (req, res) => {
 // Controller to add a new staff member
 const addStaff = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, position, department, gender, dateOfBirth, address, joiningDate, salary, employeeId, emergencyContact, profilePicture, qualifications } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      position,
+      department,
+      gender,
+      dateOfBirth,
+      address,
+      joiningDate,
+      salary,
+      emergencyContact,
+      profilePicture,
+      qualifications,
+    } = req.body;
+
+    // Generate a random 4-digit password
+    const randomPassword = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
     const newStaff = new Staff({
       firstName,
@@ -134,18 +156,20 @@ const addStaff = async (req, res) => {
       employeeId,
       emergencyContact,
       profilePicture,
-      qualifications
+      qualifications,
+      password: hashedPassword, // Save the hashed password
     });
 
     const savedStaff = await newStaff.save(); // Save the staff in the database
 
+    // Respond with only the staff details (excluding the password)
     res.status(201).json({
-      message: 'Staff added successfully!',
-      staff: savedStaff
+      message: "Staff added successfully!",
+      staff: savedStaff,
     });
   } catch (error) {
-    console.error('Error adding staff:', error);
-    res.status(500).json({ message: 'Failed to add staff' });
+    console.error("Error adding staff:", error);
+    res.status(500).json({ message: "Failed to add staff" });
   }
 };
 
@@ -172,7 +196,7 @@ const getAllStaff = async (req, res) => {
 // Add a new book
  const addBook = async (req, res) => {
   try {
-    const { title, author, ISBN, category, availableCopies, totalCopies } = req.body;
+    const { title, author, ISBN, category, availableCopies, price, totalCopies } = req.body;
 
 
     if (availableCopies > totalCopies) {
@@ -290,6 +314,9 @@ const generatePassword = () => {
   return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "your_default_secret_key";
+
+
 // Create a new staff member
 const createStaff = async (req, res) => {
   try {
@@ -317,9 +344,6 @@ const createStaff = async (req, res) => {
       $or: [{ email }, { employeeId }],
     });
 
-    if (existingStaff) {
-      return res.status(400).json({ message: "Staff member already exists" });
-    }
 
     // Generate a 4-digit random password
     const password = generatePassword();
@@ -349,7 +373,7 @@ const createStaff = async (req, res) => {
     // Generate a JWT token for the staff member
     const token = jwt.sign(
       { id: newStaff._id, email: newStaff.email },
-      JWT_SECRET,
+      JWT_SECRET_KEY,
       { expiresIn: "1d" }
     );
 
@@ -409,7 +433,7 @@ const registerUser = async (req, res) => {
     await newUser.save();
 
     // Generate a JWT token
-    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, {
+    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET_KEY, {
       expiresIn: '1d',
     });
 

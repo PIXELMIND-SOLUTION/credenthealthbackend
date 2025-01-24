@@ -18,6 +18,11 @@ const staffSchema = new Schema({
     state: { type: String },
     zipCode: { type: String },
   },
+  status: {
+    type: String,
+    enum: ["active", "inactive"],
+    default: "active", // Default value is "active"
+  },
   joiningDate: { type: Date },
   salary: { type: Number },
   employeeId: { type: String, unique: true },

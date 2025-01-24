@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler'
 import Student from '../Models/User.js';
 import Staff from '../Models/Staff.js';
 import Book from '../Models/Book.js';
+import User from '../Models/User.js';
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
 import jwt from 'jsonwebtoken'
@@ -218,6 +219,7 @@ const getAllStaff = async (req, res) => {
       category,
       availableCopies: availableCopies || totalCopies,
       totalCopies,
+      price
     });
 
     await newBook.save();
@@ -457,6 +459,44 @@ const registerUser = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    // Fetch all users from the database
+    const users = await User.find();
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ message: "No users found" });
+    }
+
+    // Function to format date to readable format (e.g., 'January 22, 2025')
+    const formatDate = (date) => {
+      return new Date(date).toLocaleDateString("en-US", {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    };
+
+    // Respond with all users' details
+    res.status(200).json({
+      users: users.map(user => ({
+        id: user._id,
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
+        address: user.address,
+        joiningDate: formatDate(user.joiningDate), // Format joining date
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 // Add salary payment
 const addSalaryPayment = async (req, res) => {
   try {
@@ -525,6 +565,7 @@ export {
   deleteBook,
   createStaff,
   registerUser,
+  getAllUsers,
   addSalaryPayment,
   getAllSalaries
 }

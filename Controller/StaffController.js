@@ -93,6 +93,35 @@ const getSalaryPayments = async (req, res) => {
       res.status(500).json({ message: 'Internal server error' });
     }
   };
+
+// Get staff details
+const getStaff = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    // Check if staffId is provided
+    if (!staffId) {
+      return res.status(400).json({ message: 'Staff ID is required' });
+    }
+
+    // Fetch the staff details
+    const staffDetails = await Staff.findById(staffId).select('-password');
+
+    // Check if the staff member exists
+    if (!staffDetails) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+
+    res.status(200).json({
+      message: 'Staff details fetched successfully',
+      staffDetails,
+    });
+  } catch (error) {
+    console.error('Error fetching staff details:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
   
 
-export  { loginStaff, logoutStaff, getSalaryPayments }
+export  { loginStaff, logoutStaff, getSalaryPayments, getStaff }

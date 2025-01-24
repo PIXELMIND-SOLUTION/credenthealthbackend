@@ -20,6 +20,9 @@ const bookSchema = new mongoose.Schema(
     totalCopies: {
       type: Number,
     },
+    price: {
+      type: Number,
+    },
   },
   { timestamps: true }
 );

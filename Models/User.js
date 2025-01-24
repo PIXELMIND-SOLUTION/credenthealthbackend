@@ -32,6 +32,11 @@ fees: [{
       state: { type: String },
       zipCode: { type: String },
     }, // New field
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active", // Default value is "active"
+    },  
     joiningDate: { type: Date }, // New field
     createdAt: { type: Date, default: Date.now },
   refreshToken: {

@@ -24,6 +24,26 @@ const staffSchema = new Schema({
     default: "active", // Default value is "active"
   },
   joiningDate: { type: Date },
+  mySalary: [
+    {
+      _id: mongoose.Schema.Types.ObjectId, // Unique ID for each salary record
+      amount: {
+        type: Number,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ["Cash", "Bank Transfer", "Cheque", "Card", "UPI"],
+      },
+      remarks: {
+        type: String,
+        default: "",
+      },
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   salary: { type: Number },
   employeeId: { type: String, unique: true },
   emergencyContact: {

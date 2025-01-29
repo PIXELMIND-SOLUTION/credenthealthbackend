@@ -36,7 +36,27 @@ fees: [{
       type: String,
       enum: ["active", "inactive"],
       default: "active", // Default value is "active"
-    },  
+    },
+    fees: [
+    {
+      _id: mongoose.Schema.Types.ObjectId,
+      amount: {
+        type: Number,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ["Cash", "Bank Transfer", "Cheque", "UPI"],
+      },
+      remarks: {
+        type: String,
+        default: "",
+      },
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ], 
     joiningDate: { type: Date }, // New field
     createdAt: { type: Date, default: Date.now },
   refreshToken: {

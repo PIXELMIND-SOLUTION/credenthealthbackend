@@ -6,6 +6,8 @@ import Book from '../Models/Book.js';
 import User from '../Models/User.js';
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
+import Salary from '../Models/Salary.js';
+import Fees from '../Models/Fees.js';
 import jwt from 'jsonwebtoken'
 
 
@@ -461,35 +463,15 @@ const registerUser = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    // Fetch all users from the database
-    const users = await User.find();
+    // Fetch all users from the database with complete fields
+    const users = await User.find({});
 
     if (!users || users.length === 0) {
       return res.status(404).json({ message: "No users found" });
     }
 
-    // Function to format date to readable format (e.g., 'January 22, 2025')
-    const formatDate = (date) => {
-      return new Date(date).toLocaleDateString("en-US", {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    };
-
     // Respond with all users' details
-    res.status(200).json({
-      users: users.map(user => ({
-        id: user._id,
-        fullName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        phone: user.phone,
-        dateOfBirth: user.dateOfBirth,
-        address: user.address,
-        joiningDate: formatDate(user.joiningDate), // Format joining date
-      })),
-    });
+    res.status(200).json({ users });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -497,11 +479,28 @@ const getAllUsers = async (req, res) => {
 };
 
 
-// Add salary payment
-const addSalaryPayment = async (req, res) => {
+const getAllFees = async (req, res) => {
   try {
-    const { staffId, amount, paymentMethod, remarks } = req.body;
+    // Fetch all fees records from the database
+    const fees = await Fees.find().populate("userId", "firstName lastName email");
 
+    if (!fees || fees.length === 0) {
+      return res.status(404).json({ message: "No fees records found" });
+    }
+
+    // Respond with all fees records
+    res.status(200).json({ fees });
+  } catch (error) {
+    console.error("Error fetching fees records:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+const addSalaryPayment = async (req, res) => {
+  const { staffId } = req.params
+  try {
+    const { amount, paymentMethod, remarks, date } = req.body;
 
     // Check if staff exists
     const staff = await Staff.findById(staffId);
@@ -509,15 +508,20 @@ const addSalaryPayment = async (req, res) => {
       return res.status(404).json({ message: 'Staff not found' });
     }
 
-    // Create a new salary record
+    // Create a new salary record in Salary collection
     const salaryRecord = new Salary({
       staffId,
       amount,
       paymentMethod,
       remarks,
+      date: date || new Date(),
     });
 
     await salaryRecord.save();
+
+    // Push full salary record into staff's mySalary array
+    staff.mySalary.push(salaryRecord.toObject()); // Convert Mongoose document to plain object
+    await staff.save();
 
     res.status(201).json({
       message: 'Salary payment recorded successfully',
@@ -528,6 +532,7 @@ const addSalaryPayment = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 // Get all salary records
 const getAllSalaries = async (req, res) => {
@@ -552,6 +557,42 @@ const getAllSalaries = async (req, res) => {
   }
 };
 
+const addUserFees = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const { amount, paymentMethod, remarks, date } = req.body;
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Create a new fee record in Fees collection
+    const feeRecord = new Fees({
+      userId,
+      amount,
+      paymentMethod,
+      remarks,
+      date: date || new Date(),
+    });
+
+    await feeRecord.save();
+
+    // Push fee record into user's fees array
+    user.fees.push(feeRecord.toObject()); // Convert Mongoose document to plain object
+    await user.save();
+
+    res.status(201).json({
+      message: "Fee payment recorded successfully",
+      fee: feeRecord,
+    });
+  } catch (error) {
+    console.error("Error adding fee payment:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export {
   adminRegistration,
   adminLogin,
@@ -567,5 +608,7 @@ export {
   registerUser,
   getAllUsers,
   addSalaryPayment,
-  getAllSalaries
+  getAllSalaries,
+  addUserFees,
+  getAllFees
 }

@@ -4,6 +4,7 @@ import Staff from '../Models/Staff.js';
 import jwt from 'jsonwebtoken'
 import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
+import Salary from '../Models/Salary.js';
 
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "your_default_secret_key";
@@ -122,6 +123,25 @@ const getStaff = async (req, res) => {
   }
 };
 
+const getStaffSalary = async (req, res) => {
+  const { staffId } = req.params; // Extract staffId from request parameters
+
+  try {
+    // Fetch all salary records for the given staffId
+    const salaryRecords = await Salary.find({ staffId }).populate("staffId", "name email");
+
+    if (!salaryRecords || salaryRecords.length === 0) {
+      return res.status(404).json({ message: "No salary records found for this staff member" });
+    }
+
+    // Respond with the staff's salary records
+    res.status(200).json({ salaryRecords });
+  } catch (error) {
+    console.error("Error fetching staff salary records:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
   
 
-export  { loginStaff, logoutStaff, getSalaryPayments, getStaff }
+export  { loginStaff, logoutStaff, getSalaryPayments, getStaff, getStaffSalary }

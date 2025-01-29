@@ -16,6 +16,8 @@ import {
   registerUser,
   addSalaryPayment,
   getAllUsers,
+  addUserFees,
+  getAllFees
 } from '../Controller/AdminController.js'
 
 
@@ -31,10 +33,15 @@ router.get("/getbooks", getAllBooks);
 router.get("/books/:id", getBookById);
 router.put("/update/:id", updateBook);
 router.delete("/delete/:id", deleteBook);
-router.get('/admin/salaries', getAllSalaries);
 router.post('/add-user', registerUser);
 router.get('/get-users', getAllUsers);
-router.post('/add-salary', addSalaryPayment);
+router.post('/add-salary/:staffId', addSalaryPayment);
+router.get('/staff-salaries', getAllSalaries);
+router.post("/add-fees/:userId", addUserFees);
+router.get('/student-fees', getAllFees);
+
+
+
 
 
 

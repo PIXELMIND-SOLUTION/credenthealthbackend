@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler'
 import User from '../Models/User.js';
 import jwt from 'jsonwebtoken'
 import dotenv from 'dotenv';
+import Fees from '../Models/Fees.js';
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "your_default_secret_key";
 
@@ -82,11 +83,31 @@ const getUser = async (req, res) => {
   }
 };
 
+const getUserFees = async (req, res) => {
+  const { userId } = req.params; // Extract userId from request parameters
+
+  try {
+    // Fetch all fees records for the given userId
+    const fees = await Fees.find({ userId }).populate("fees");
+
+    if (!fees || fees.length === 0) {
+      return res.status(404).json({ message: "No fees records found for this student" });
+    }
+
+    // Respond with the user's fees records
+    res.status(200).json({ fees });
+  } catch (error) {
+    console.error("Error fetching student fees:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 
 export  {
   loginUser,
   logoutUser,
-  getUser
+  getUser,
+  getUserFees
 };

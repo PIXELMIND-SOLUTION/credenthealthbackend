@@ -14,7 +14,7 @@ const app = express();
 
 // CORS Configuration to allow multiple origins
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://library-frontend-gicc.onrender.com', 'https://macbelllibrary.vercel.app/'],  // Multiple allowed origins
+    origin: ['http://localhost:3000', 'https://library-frontend-gicc.onrender.com', 'https://macbelllibrary.vercel.app'],  // Multiple allowed origins
     methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Allowed HTTP methods
     credentials: true  // Allow cookies if needed
   }));

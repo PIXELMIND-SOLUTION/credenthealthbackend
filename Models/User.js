@@ -62,6 +62,8 @@ fees: [{
   refreshToken: {
     type: String,
   },
+  myPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "Plan" }], // 🔥 User ke plan store karne ke liye
+
 
 }, { timestamps: true });
 

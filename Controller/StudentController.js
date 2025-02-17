@@ -3,6 +3,8 @@ import User from '../Models/User.js';
 import jwt from 'jsonwebtoken'
 import dotenv from 'dotenv';
 import Fees from '../Models/Fees.js';
+import Plan from '../Models/Plan.js';
+import UserPlan from '../Models/UserPlan.js';
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "your_default_secret_key";
 
@@ -102,6 +104,50 @@ const getUserFees = async (req, res) => {
   }
 };
 
+ const choosePlan = async (req, res) => {
+  try {
+    const { userId, planId } = req.body;
+
+    // ✅ Check if the plan exists
+    const plan = await Plan.findById(planId);
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    // ✅ Save in UserPlan Model
+    const newUserPlan = new UserPlan({ userId, planId });
+    await newUserPlan.save();
+
+    // ✅ Save plan in User's myPlan[] array
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.myPlan.push(planId); // 🔥 User ke `myPlan[]` me save karega
+    await user.save();
+
+    res.status(201).json({ message: "Plan chosen successfully", userPlan: newUserPlan });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+// ✅ Get plans for a specific user
+const getUserPlans = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).populate("myPlan");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user.myPlan);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 
 
 
@@ -109,5 +155,7 @@ export  {
   loginUser,
   logoutUser,
   getUser,
-  getUserFees
+  getUserFees,
+  choosePlan,
+  getUserPlans
 };

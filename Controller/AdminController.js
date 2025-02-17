@@ -8,6 +8,7 @@ import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
 import Salary from '../Models/Salary.js';
 import Fees from '../Models/Fees.js';
+import Plan from '../Models/Plan.js';
 import jwt from 'jsonwebtoken'
 
 
@@ -593,6 +594,119 @@ const addUserFees = async (req, res) => {
   }
 };
 
+// ✅ Create a new plan
+ const createPlan = async (req, res) => {
+  try {
+    const { name, price, features } = req.body;
+
+    const newPlan = new Plan({ name, price, features });
+    await newPlan.save();
+
+    res.status(201).json({ message: "Plan created successfully", plan: newPlan });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Get all plans
+ const getAllPlans = async (req, res) => {
+  try {
+    const plans = await Plan.find();
+    res.status(200).json(plans);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Get single plan by ID
+ const getPlanById = async (req, res) => {
+  try {
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+    res.status(200).json(plan);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Update plan by ID
+ const updatePlan = async (req, res) => {
+  try {
+    const { name, price, features } = req.body;
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      req.params.id,
+      { name, price, features },
+      { new: true }
+    );
+
+    if (!updatedPlan) return res.status(404).json({ message: "Plan not found" });
+
+    res.status(200).json({ message: "Plan updated successfully", plan: updatedPlan });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Delete plan by ID
+ const deletePlan = async (req, res) => {
+  try {
+    const deletedPlan = await Plan.findByIdAndDelete(req.params.id);
+    if (!deletedPlan) return res.status(404).json({ message: "Plan not found" });
+
+    res.status(200).json({ message: "Plan deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Get all users with their plans (For Admin)
+const getAllUsersPlans = async (req, res) => {
+  try {
+    const users = await User.find().populate("myPlan", "name price").select("firstName lastName joiningDate myPlan");
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Toggle User Plan Status (Active/Inactive)
+const toggleUserPlanStatus = async (req, res) => {
+  try {
+    const { userId, planId, status } = req.body; // Get user ID, plan ID, and status from request
+
+    if (!status || (status !== "active" && status !== "inactive")) {
+      return res.status(400).json({ message: "Invalid status. Please provide 'active' or 'inactive'" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const planIndex = user.myPlan.findIndex((p) => p._id.toString() === planId); // Use findIndex to get the plan's index
+    if (planIndex === -1) {
+      return res.status(404).json({ message: "Plan not found for this user" });
+    }
+
+    // Update the plan's status directly by using the plan's index
+    user.myPlan[planIndex].status = status;
+
+    await user.save(); // Save the updated user data with the updated plan status
+
+    // Send the updated plan back in the response
+    res.status(200).json({ message: `Plan status updated to ${user.myPlan[planIndex].status}`, plan: user.myPlan[planIndex] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+
+
+
 export {
   adminRegistration,
   adminLogin,
@@ -610,5 +724,9 @@ export {
   addSalaryPayment,
   getAllSalaries,
   addUserFees,
-  getAllFees
+  getAllFees,
+  createPlan,
+  getAllPlans,
+  getAllUsersPlans,
+  toggleUserPlanStatus
 }

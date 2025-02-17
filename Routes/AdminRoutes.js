@@ -17,7 +17,11 @@ import {
   addSalaryPayment,
   getAllUsers,
   addUserFees,
-  getAllFees
+  getAllFees,
+  createPlan,
+  getAllPlans,
+  getAllUsersPlans,
+  toggleUserPlanStatus
 } from '../Controller/AdminController.js'
 
 
@@ -39,6 +43,12 @@ router.post('/add-salary/:staffId', addSalaryPayment);
 router.get('/staff-salaries', getAllSalaries);
 router.post("/add-fees/:userId", addUserFees);
 router.get('/student-fees', getAllFees);
+router.post("/create-plans", createPlan); // ✅ Create plan
+router.get("/get-plans", getAllPlans); // ✅ Get all plans
+router.get("/user-plans", getAllUsersPlans); // ✅ Get all plans
+router.put("/status", toggleUserPlanStatus); // ✅ Get all plans
+
+
 
 
 

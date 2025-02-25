@@ -8,7 +8,10 @@ import generateRefreshToken from '../config/refreshtoken.js';
 import generateToken from '../config/jwtToken.js';
 import Salary from '../Models/Salary.js';
 import Fees from '../Models/Fees.js';
+import StaffAttendance from '../Models/StaffAttendance.js';
 import Plan from '../Models/Plan.js';
+import Task from '../Models/Task.js';
+import Meeting from '../Models/Meeting.js';
 import jwt from 'jsonwebtoken'
 
 
@@ -561,7 +564,7 @@ const getAllSalaries = async (req, res) => {
 const addUserFees = async (req, res) => {
   const { userId } = req.params;
   try {
-    const { amount, paymentMethod, remarks, date } = req.body;
+    const { amount, paymentMethod, remarks, date, planName, planPrice, expiredDate, pendingAmount, paidAmount } = req.body;
 
     // Check if user exists
     const user = await User.findById(userId);
@@ -576,6 +579,11 @@ const addUserFees = async (req, res) => {
       paymentMethod,
       remarks,
       date: date || new Date(),
+      planName,
+      planPrice,
+      expiredDate,
+      pendingAmount,
+      paidAmount,
     });
 
     await feeRecord.save();
@@ -594,12 +602,61 @@ const addUserFees = async (req, res) => {
   }
 };
 
-// ✅ Create a new plan
- const createPlan = async (req, res) => {
+const updateUserFees = async (req, res) => {
+  const { userId, feeId } = req.params;
   try {
-    const { name, price, features } = req.body;
+    const { amountPaid } = req.body;
 
-    const newPlan = new Plan({ name, price, features });
+    // Find the fee record
+    const feeRecord = await Fees.findById(feeId);
+    if (!feeRecord) {
+      return res.status(404).json({ message: "Fee record not found" });
+    }
+
+    // Ensure the fee record belongs to the given user
+    if (feeRecord.userId.toString() !== userId) {
+      return res.status(403).json({ message: "Unauthorized access to fee record" });
+    }
+
+    // Update the paidAmount and pendingAmount
+    feeRecord.paidAmount += amountPaid;
+    feeRecord.pendingAmount -= amountPaid;
+
+    // Ensure pendingAmount does not go negative
+    if (feeRecord.pendingAmount <= 0) {
+      feeRecord.pendingAmount = 0;
+    }
+
+    await feeRecord.save();
+
+    // ✅ Update the user's fees[] array where _id matches the feeId
+    await User.updateOne(
+      { _id: userId, "fees._id": feeId },  // Find user where fees[] contains the matching _id
+      { 
+        $inc: { "fees.$.paidAmount": amountPaid, "fees.$.pendingAmount": -amountPaid } // Update the matching fee entry
+      }
+    );
+
+    res.status(200).json({
+      message: "Fee payment updated successfully in both Fees and User Fees[]",
+      updatedFee: feeRecord,
+    });
+  } catch (error) {
+    console.error("Error updating fee payment:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+
+
+// ✅ Create a new plan
+const createPlan = async (req, res) => {
+  try {
+    const { name, price, features, duration } = req.body;
+
+    const newPlan = new Plan({ name, price, features, duration });
     await newPlan.save();
 
     res.status(201).json({ message: "Plan created successfully", plan: newPlan });
@@ -607,6 +664,34 @@ const addUserFees = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// ✅ Update Plan's Status
+const updatePlanStatus = async (req, res) => {
+  const { planId } = req.params;  // Plan ID from params
+  const { status } = req.body;    // Status from body
+
+  try {
+    // Find the plan by ID and update the status
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      planId,
+      { status },  // Update the status field
+      { new: true } // Return the updated document
+    );
+
+    // If plan not found
+    if (!updatedPlan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    res.status(200).json({
+      message: "Plan status updated successfully",
+      plan: updatedPlan,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 
 // ✅ Get all plans
  const getAllPlans = async (req, res) => {
@@ -617,6 +702,28 @@ const addUserFees = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// ✅ Get today's latest plan
+const getLatestPlan = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+
+    const latestPlan = await Plan.findOne({
+      createdAt: { $gte: today },
+    }).sort({ createdAt: -1 });
+
+    if (!latestPlan) {
+      return res.status(404).json({ message: "No plan created today" });
+    }
+
+    res.status(200).json(latestPlan);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
 
 // ✅ Get single plan by ID
  const getPlanById = async (req, res) => {
@@ -660,47 +767,225 @@ const addUserFees = async (req, res) => {
   }
 };
 
-// ✅ Get all users with their plans (For Admin)
 const getAllUsersPlans = async (req, res) => {
   try {
-    const users = await User.find().populate("myPlan", "name price").select("firstName lastName joiningDate myPlan");
+    const users = await User.find()
+      .populate({
+        path: "myPlans.planId", // ✅ Populate planId inside myPlans
+        select: "name price",  // ✅ Select only name & price
+      })
+      .select("firstName lastName joiningDate myPlans");
+
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Toggle User Plan Status (Active/Inactive)
 const toggleUserPlanStatus = async (req, res) => {
+  const { userId, planId } = req.params; // User ID and Plan ID from params
+  const { status } = req.body; // Admin will send status in request body
+
   try {
-    const { userId, planId, status } = req.body; // Get user ID, plan ID, and status from request
-
-    if (!status || (status !== "active" && status !== "inactive")) {
-      return res.status(400).json({ message: "Invalid status. Please provide 'active' or 'inactive'" });
-    }
-
+    // Step 1: Find the user by ID
     const user = await User.findById(userId);
+    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const planIndex = user.myPlan.findIndex((p) => p._id.toString() === planId); // Use findIndex to get the plan's index
-    if (planIndex === -1) {
+    // Step 2: Find the user's plan in myPlans array
+    const userPlanIndex = user.myPlans.findIndex(plan => plan.planId?.toString() === planId.toString());
+
+    if (userPlanIndex === -1) {
       return res.status(404).json({ message: "Plan not found for this user" });
     }
 
-    // Update the plan's status directly by using the plan's index
-    user.myPlan[planIndex].status = status;
+    // Get the existing plan
+    let updatedPlan = { ...user.myPlans[userPlanIndex] };
 
-    await user.save(); // Save the updated user data with the updated plan status
+    // Ensure planId remains unchanged
+    updatedPlan.planId = user.myPlans[userPlanIndex].planId;
 
-    // Send the updated plan back in the response
-    res.status(200).json({ message: `Plan status updated to ${user.myPlan[planIndex].status}`, plan: user.myPlan[planIndex] });
+    // If the status is already the same, return early
+    if (updatedPlan.status === status) {
+      return res.status(200).json({ message: `Plan is already ${status}`, user, updatedPlan });
+    }
+
+    updatedPlan.status = status; // Update the status
+
+    if (status === "active") {
+      // Step 3: Fetch the plan details to get the duration
+      const plan = await Plan.findById(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan details not found" });
+      }
+
+      // Step 4: Convert duration to days (Assuming duration is in months)
+      const durationInDays = parseInt(plan.duration) * 30; // 1 month = 30 days
+
+      // Step 5: Set start and expiry date
+      const currentDate = new Date();
+      const expireDate = new Date(currentDate);
+      expireDate.setDate(currentDate.getDate() + durationInDays);
+
+      // Update plan details only if active
+      updatedPlan = {
+        ...updatedPlan,
+        startDate: currentDate,
+        expireDate: expireDate,
+        remainingDays: durationInDays,
+      };
+    } else {
+      // If status is inactive, remove startDate, expireDate, and remainingDays
+      delete updatedPlan.startDate;
+      delete updatedPlan.expireDate;
+      delete updatedPlan.remainingDays;
+    }
+
+    // Step 6: Update the specific plan inside myPlans[]
+    user.myPlans[userPlanIndex] = updatedPlan;
+
+    // Step 7: Save the updated user data
+    await user.save();
+
+    res.status(200).json({
+      message: `Plan ${status === "active" ? "activated" : "deactivated"} successfully`,
+      user,
+      updatedPlan: user.myPlans[userPlanIndex], // Return the updated plan
+    });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
+ const assignTaskToStaff = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { title, description, dueDate } = req.body;
+
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Staff member not found" });
+    }
+
+    const newTask = { title, description, dueDate, status: "pending", assignedAt: new Date() };
+
+    staff.myTasks.push(newTask);
+    await staff.save();
+
+    return res.status(200).json({ message: "Task assigned successfully", assignedTask: newTask });
+  } catch (error) {
+    console.error("Error assigning task:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getAllStaffWithTasks = async (req, res) => {
+  try {
+    const staffMembers = await Staff.find({}, "firstName lastName phone myTasks");
+
+    return res.status(200).json({ staff: staffMembers });
+  } catch (error) {
+    console.error("Error fetching staff with tasks:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+// ✅ Mark Staff Attendance (Push into myAttendance[])
+const markAttendance = async (req, res) => {
+  try {
+    const { staffId, date, status } = req.body;
+
+    // Check if the staff exists
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Staff not found." });
+    }
+
+    // Check if attendance already marked for the day
+    const alreadyMarked = staff.myAttendance.some((att) => att.date === date);
+    if (alreadyMarked) {
+      return res.status(400).json({ message: "Attendance already marked for today." });
+    }
+
+    // Push attendance into myAttendance array
+    staff.myAttendance.push({ date, status });
+
+    await staff.save();
+    res.status(201).json({ message: "Attendance marked successfully.", attendance: staff.myAttendance });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
+// ✅ Schedule Meeting for All Staff (Push into myMeetings[])
+const scheduleMeeting = async (req, res) => {
+  try {
+    const { title, date, time, link, description } = req.body;
+
+    // Find all staff members
+    const staffMembers = await Staff.find();
+    if (!staffMembers.length) {
+      return res.status(404).json({ message: "No staff members found." });
+    }
+
+    // Meeting details
+    const meetingDetails = { title, date, time, link, description };
+
+    // Update each staff member's myMeetings[] array
+    await Promise.all(
+      staffMembers.map(async (staff) => {
+        staff.myMeetings.push(meetingDetails);
+        await staff.save();
+      })
+    );
+
+    res.status(201).json({ message: "Meeting scheduled successfully for all staff members." });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
+
+
+// ✅ Get Attendance of All Staff (For Admin)
+const getAllStaffAttendances = async (req, res) => {
+  try {
+    const staffMembers = await Staff.find({}, "firstName lastName phone myAttendance");
+
+    return res.status(200).json({ staff: staffMembers });
+  } catch (error) {
+    console.error("Error fetching staff with tasks:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+// ✅ Get All Scheduled Meetings (Admin)
+const getAllMeetings = async (req, res) => {
+  try {
+    // Fetch all staff members with their meetings
+    const staffMeetings = await Staff.find({}, "myMeetings");
+
+    // Extract all meetings from each staff member
+    let allMeetings = [];
+    staffMeetings.forEach((staff) => {
+      allMeetings = [...allMeetings, ...staff.myMeetings];
+    });
+
+    if (allMeetings.length === 0) {
+      return res.status(404).json({ message: "No meetings found." });
+    }
+
+    res.status(200).json({ message: "Meetings retrieved successfully.", meetings: allMeetings });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
 
 
 
@@ -728,5 +1013,14 @@ export {
   createPlan,
   getAllPlans,
   getAllUsersPlans,
-  toggleUserPlanStatus
+  toggleUserPlanStatus,
+  updatePlanStatus,
+  getLatestPlan,
+  updateUserFees,
+  assignTaskToStaff,
+  getAllStaffWithTasks,
+  markAttendance,
+  getAllStaffAttendances,
+  scheduleMeeting,
+  getAllMeetings
 }

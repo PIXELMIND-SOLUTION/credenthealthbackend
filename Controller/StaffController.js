@@ -49,51 +49,51 @@ const loginStaff = async (req, res) => {
 };
 
 
-  const logoutStaff = async (req, res) => {
-    try {
-      // Clear the "token" cookie from the client
-      res
-        .clearCookie("token", {
-          httpOnly: true, // Ensure cookie cannot be accessed via JavaScript
-          secure: true, // Send only over HTTPS
-          sameSite: "strict", // Prevent CSRF
-        })
-        .status(200)
-        .json({ message: "Logout Successful" });
-    } catch (error) {
-      console.error("Error during logout:", error);
-      res
-        .status(500)
-        .json({ status: "failed", message: "Unable to logout", error: error.message });
-    }
-  };
-  
+const logoutStaff = async (req, res) => {
+  try {
+    // Clear the "token" cookie from the client
+    res
+      .clearCookie("token", {
+        httpOnly: true, // Ensure cookie cannot be accessed via JavaScript
+        secure: true, // Send only over HTTPS
+        sameSite: "strict", // Prevent CSRF
+      })
+      .status(200)
+      .json({ message: "Logout Successful" });
+  } catch (error) {
+    console.error("Error during logout:", error);
+    res
+      .status(500)
+      .json({ status: "failed", message: "Unable to logout", error: error.message });
+  }
+};
+
 // Get salary payment history
 const getSalaryPayments = async (req, res) => {
-    try {
-      const { staffId } = req.query;
-  
-      // Check if staffId is provided
-      if (!staffId) {
-        return res.status(400).json({ message: 'Staff ID is required' });
-      }
-  
-      // Fetch salary payments for the specific staff
-      const salaryRecords = await Salary.find({ staffId }).populate('staffId', 'firstName lastName position department');
-  
-      if (!salaryRecords || salaryRecords.length === 0) {
-        return res.status(404).json({ message: 'No salary payments found for this staff member' });
-      }
-  
-      res.status(200).json({
-        message: 'Salary payments fetched successfully',
-        salaryRecords,
-      });
-    } catch (error) {
-      console.error('Error fetching salary payments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+  try {
+    const { staffId } = req.query;
+
+    // Check if staffId is provided
+    if (!staffId) {
+      return res.status(400).json({ message: 'Staff ID is required' });
     }
-  };
+
+    // Fetch salary payments for the specific staff
+    const salaryRecords = await Salary.find({ staffId }).populate('staffId', 'firstName lastName position department');
+
+    if (!salaryRecords || salaryRecords.length === 0) {
+      return res.status(404).json({ message: 'No salary payments found for this staff member' });
+    }
+
+    res.status(200).json({
+      message: 'Salary payments fetched successfully',
+      salaryRecords,
+    });
+  } catch (error) {
+    console.error('Error fetching salary payments:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 // Get staff details
 const getStaff = async (req, res) => {
@@ -142,6 +142,100 @@ const getStaffSalary = async (req, res) => {
   }
 };
 
-  
+const getSingleStaffWithTasks = async (req, res) => {
+  try {
+    const { staffId } = req.params;
 
-export  { loginStaff, logoutStaff, getSalaryPayments, getStaff, getStaffSalary }
+    const staff = await Staff.findById(staffId, "myTasks");
+
+    if (!staff) {
+      return res.status(404).json({ message: "Staff member not found" });
+    }
+
+    return res.status(200).json({ staff });
+  } catch (error) {
+    console.error("Error fetching staff with tasks:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const updateTaskStatus = async (req, res) => {
+  try {
+    const { staffId, taskId } = req.params;
+    const { status } = req.body;
+
+    // Valid statuses (Modify if needed)
+    const validStatuses = ["pending", "in-progress", "completed"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // Find staff and update the task status
+    const staff = await Staff.findOneAndUpdate(
+      { _id: staffId, "myTasks._id": taskId },
+      { $set: { "myTasks.$.status": status } },
+      { new: true }
+    );
+
+    if (!staff) {
+      return res.status(404).json({ message: "Staff member or task not found" });
+    }
+
+    return res.status(200).json({ message: "Task status updated successfully", staff });
+  } catch (error) {
+    console.error("Error updating task status:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ✅ Get Attendance of a Specific Staff
+const getStaffAttendance = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    // Check if staff exists
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Staff not found." });
+    }
+
+    res.status(200).json({ staffId, attendanceRecords: staff.myAttendance });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
+// ✅ Get Single Staff's Meetings
+const getStaffMeetings = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    // Find the staff member
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Staff member not found." });
+    }
+
+    res.status(200).json({ message: "Meetings retrieved successfully.", myMeetings: staff.myMeetings });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
+
+
+
+
+
+
+export {
+  loginStaff,
+  logoutStaff,
+  getSalaryPayments,
+  getStaff,
+  getStaffSalary,
+  getSingleStaffWithTasks,
+  updateTaskStatus,
+  getStaffAttendance,
+  getStaffMeetings
+}

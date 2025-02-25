@@ -20,6 +20,21 @@ const FeesSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  planName: {
+    type: String,
+  },
+  planPrice: {
+    type: Number,
+  },
+  expiredDate: {
+    type: Date,
+  },
+  pendingAmount: {
+    type: Number,
+  },
+  paidAmount: {
+    type: Number,
+  },
 });
 
 const Fees = mongoose.model("Fees", FeesSchema);

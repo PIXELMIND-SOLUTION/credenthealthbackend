@@ -104,30 +104,50 @@ const getUserFees = async (req, res) => {
   }
 };
 
- const choosePlan = async (req, res) => {
+ // ✅ User Plan Purchase (With Expiry Date)
+const choosePlan = async (req, res) => {
+  const { userId } = req.params;  // User ID from params
+  const { planId } = req.body;    // Plan ID from body (user purchases this plan)
+
   try {
-    const { userId, planId } = req.body;
-
-    // ✅ Check if the plan exists
-    const plan = await Plan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({ message: "Plan not found" });
-    }
-
-    // ✅ Save in UserPlan Model
-    const newUserPlan = new UserPlan({ userId, planId });
-    await newUserPlan.save();
-
-    // ✅ Save plan in User's myPlan[] array
+    // Step 1: Find the user by ID
     const user = await User.findById(userId);
+    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.myPlan.push(planId); // 🔥 User ke `myPlan[]` me save karega
+    // Step 2: Find the plan by ID
+    const plan = await Plan.findById(planId);
+
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    // Step 3: Get validityInDays from the plan document
+    const validityInDays = plan.validityInDays;
+
+    // Step 4: Get current date
+    const currentDate = new Date();
+
+    // Step 5: Add the plan to the user's myPlans array with defaults set to null
+    user.myPlans.push({
+      planId: plan._id,        // Add the plan ID
+      status: "pending",       // Initial status is pending
+      purchaseDate: currentDate, // Date of purchase
+      startDate: null,         // Default to null
+      expireDate: null,        // Default to null
+      remainingDays: null,     // Default to null
+      validityInDays,          // Store validity period for reference
+    });
+
+    // Step 6: Save the updated user data
     await user.save();
 
-    res.status(201).json({ message: "Plan chosen successfully", userPlan: newUserPlan });
+    res.status(200).json({
+      message: "Plan purchased and added to myPlans successfully",
+      user,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -138,15 +158,33 @@ const getUserFees = async (req, res) => {
 const getUserPlans = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).populate("myPlan");
+
+    // Find the user and populate the `myPlans` array, including the name of the plan
+    const user = await User.findById(userId).populate({
+      path: "myPlans.planId", // Populate the planId field inside the myPlans array
+      select: "name price",         // Select the 'name' field of the plan
+    });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json(user.myPlan);
+
+    // Return the user's plans, including the plan name
+    res.status(200).json(user.myPlans.map(plan => ({
+      planId: plan.planId._id,   // Return the plan ID
+      planName: plan.planId.name, // Return the plan name
+      price: plan.planId.price, // Return the plan name
+      status: plan.status,
+      purchaseDate: plan.purchaseDate,
+      startDate: plan.startDate,
+      expireDate: plan.expireDate,
+      remainingDays: plan.remainingDays,
+    })));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 

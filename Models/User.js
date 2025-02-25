@@ -38,31 +38,55 @@ fees: [{
       default: "active", // Default value is "active"
     },
     fees: [
-    {
-      _id: mongoose.Schema.Types.ObjectId,
-      amount: {
-        type: Number,
+      {
+        _id: mongoose.Schema.Types.ObjectId,
+        amount: {
+          type: Number,
+        },
+        paymentMethod: {
+          type: String,
+          enum: ["Cash", "Bank Transfer", "Cheque", "UPI"],
+        },
+        remarks: {
+          type: String,
+          default: "",
+        },
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+        planName: {
+          type: String,
+        },
+        planPrice: {
+          type: Number,
+        },
+        expiredDate: {
+          type: Date,
+        },
+        pendingAmount: {
+          type: Number,
+        },
+        paidAmount: {
+          type: Number,
+        },
       },
-      paymentMethod: {
-        type: String,
-        enum: ["Cash", "Bank Transfer", "Cheque", "UPI"],
-      },
-      remarks: {
-        type: String,
-        default: "",
-      },
-      date: {
-        type: Date,
-        default: Date.now,
-      },
-    },
-  ], 
+    ],
     joiningDate: { type: Date }, // New field
     createdAt: { type: Date, default: Date.now },
   refreshToken: {
     type: String,
   },
-  myPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "Plan" }], // 🔥 User ke plan store karne ke liye
+myPlans: [
+  {
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan" },
+    status: { type: String, enum: ["active", "inactive", "pending"], default: "pending" }, // ✅ Added "pending"
+    purchaseDate: { type: Date, default: Date.now },
+    startDate: { type: Date, default: null }, // ✅ Default to null
+    expireDate: { type: Date, default: null }, // ✅ Default to null
+    remainingDays: { type: Number, default: null }, // ✅ Default to null
+  },
+],
 
 
 }, { timestamps: true });

@@ -51,6 +51,30 @@ const staffSchema = new Schema({
     relation: { type: String },
     phone: { type: String },
   },
+  myTasks: [
+    {
+      title: { type: String, required: true },
+      description: { type: String, required: true },
+      dueDate: { type: Date, required: true },
+      status: { type: String, default: "pending" },
+      assignedAt: { type: Date, default: Date.now },
+    },
+  ],
+  myAttendance: [
+    {
+      date: { type: String, },
+      status: { type: String, enum: ["Present", "Absent"], },
+    },
+  ],
+  myMeetings: [
+    {
+      title: { type: String, },
+      date: { type: String, },
+      time: { type: String, },
+      link: { type: String, },
+      description: { type: String },
+    },
+  ],
   profilePicture: { type: String },
   qualifications: { type: [String] },
   createdAt: { type: Date, default: Date.now },

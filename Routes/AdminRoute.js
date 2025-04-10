@@ -7,7 +7,7 @@ import { signupAdmin,
     updateDoctorDetails,
     createStaffProfile,
     getDoctorTestsById
- } from '../Controller/adminController.js';
+ } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
 

@@ -1,61 +1,61 @@
 import Booking from '../Models/bookingModel.js';
 import Doctor from '../Models/doctorModel.js';
 import Staff from '../Models/staffModel.js';
+import Diagnostic from '../Models/diagnosticModel.js';
 
-// Controller to handle booking an appointment
+// Controller to handle booking an appointment without payment deduction
 export const bookAppointment = async (req, res) => {
     try {
-      const { patient_name, category, doctor_id, tests, appointment_date } = req.body;
+      const { patient_name, diagnosticId, tests, appointment_date, gender, age } = req.body;
       const { staffId } = req.params; // Get staffId from URL params
-  
-      // Find doctor details
-      const doctor = await Doctor.findById(doctor_id);
-      if (!doctor) {
-        return res.status(400).json({ message: 'Doctor not found' });
+    
+      // 1. Find diagnostic center details
+      const diagnostic = await Diagnostic.findById(diagnosticId);
+      if (!diagnostic) {
+        return res.status(400).json({ message: 'Diagnostic center not found' });
       }
-  
-      // Find staff details using staffId
+    
+      // 2. Find staff details using staffId
       const staff = await Staff.findById(staffId);
       if (!staff) {
         return res.status(400).json({ message: 'Staff not found' });
       }
-  
-      // Get doctor's available tests
-      const doctorTests = doctor.tests;
-  
-      // Validate selected tests and calculate subtotal using offerPrice if available
+    
+      // 3. Get diagnostic center's available tests
+      const diagnosticTests = diagnostic.tests;
+    
+      // 4. Validate selected tests and calculate subtotal using offerPrice if available
       let subtotal = 0;
       const testDetails = [];
-  
+    
       for (let testId of tests) {
-        const selectedTest = doctorTests.find(test => test._id.toString() === testId);
+        const selectedTest = diagnosticTests.find(test => test._id.toString() === testId);
         if (!selectedTest) {
-          return res.status(400).json({ message: `Test with id ${testId} is not valid for this doctor` });
+          return res.status(400).json({ message: `Test with id ${testId} is not valid for this diagnostic center` });
         }
-  
+    
         testDetails.push(selectedTest);
-  
+    
         // Use offerPrice if available, else fallback to price
         const testPrice = selectedTest.offerPrice || selectedTest.price;
         subtotal += testPrice;
       }
-  
-      // Doctor's consultation fee
-      const consultationFee = doctor.consultation_fee;
-  
-      // GST calculation (18%)
+    
+      // Assuming consultation fee is part of diagnostic center's service (if applicable)
+      const consultationFee = diagnostic.consultation_fee || 0;  // Default to 0 if no consultation fee
+    
+      // 5. GST calculation (18%)
       const gstOnTests = (subtotal * 18) / 100;
       const gstOnConsultation = (consultationFee * 18) / 100;
-  
-      // Total amount
+    
+      // 6. Total amount
       const totalForTests = subtotal + gstOnTests;
       const total = totalForTests + consultationFee + gstOnConsultation;
-  
-      // Create booking
+    
+      // 7. Create the booking and save it
       const newBooking = new Booking({
         patient_name,
-        category,
-        doctor: doctor._id,
+        diagnostic: diagnostic._id,
         tests: testDetails.map(test => test._id),
         subtotal,
         consultation_fee: consultationFee,
@@ -63,33 +63,40 @@ export const bookAppointment = async (req, res) => {
         gst_on_consultation: gstOnConsultation,
         total,
         appointment_date,
-        staff: staff._id
+        staff: staff._id,
+        gender,  // Save gender
+        age      // Save age
       });
-  
+    
       await newBooking.save();
-  
-      // Add booking to staff's record
+    
+      // 8. Add booking to staff's record
       staff.myBookings.push(newBooking._id);
       await staff.save();
-  
-      // Respond with booking details
+    
+      // 9. Respond with booking details and bookingId for payment
       res.status(201).json({
         message: 'Appointment booked successfully',
+        bookingId: newBooking._id,  // Provide the booking ID in the response
+        total, // Send the total amount to be paid
         booking: {
           patient_name,
-          category,
           staff_name: staff.name,
-          doctor: doctor.name,
-          doctor_specialization: doctor.category,
-          clinic_address: doctor.clinic_address,
+          diagnostic_name: diagnostic.name,
+          diagnostic_image: diagnostic.image,
+          diagnostic_address: diagnostic.address,
           consultation_fee: consultationFee,
           tests: testDetails.map(test => ({
+            testId: test._id, // ✅ Added testId
             test_name: test.test_name,
             description: test.description,
             price: test.price,
-            offerPrice: test.offerPrice || test.price
+            offerPrice: test.offerPrice || test.price,
+            image: test.image // Include test image as well
           })),
           appointment_date,
+          gender, // Include gender in the response
+          age,    // Include age in the response
           subtotal,
           gst_on_tests: gstOnTests,
           gst_on_consultation: gstOnConsultation,
@@ -98,9 +105,128 @@ export const bookAppointment = async (req, res) => {
         }
       });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error });
+      console.error('Error during appointment booking:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+
+  // Controller to handle payment for the booking and deduct from staff wallet
+export const processPayment = async (req, res) => {
+    try {
+      const { bookingId, staffId } = req.params;  // Get bookingId and staffId from URL params
+  
+      // 1. Find the booking details and populate necessary fields
+      const booking = await Booking.findById(bookingId).populate('staff');
+      if (!booking) {
+        return res.status(400).json({ message: 'Booking not found' });
+      }
+  
+      // 2. Find the staff details using staffId
+      const staff = await Staff.findById(staffId);
+      if (!staff) {
+        return res.status(400).json({ message: 'Staff not found' });
+      }
+  
+      // 3. Check if the staff has enough balance to pay for the booking
+      if (staff.wallet_balance < booking.total) {
+        return res.status(400).json({ message: 'Insufficient wallet balance' });
+      }
+  
+      // 4. Deduct the total amount from the staff's wallet balance
+      staff.wallet_balance -= booking.total;
+      await staff.save();
+  
+      // 5. Update the booking status to 'Paid'
+      booking.status = 'Paid';
+      await booking.save();
+  
+      // 6. Respond with success message and the updated booking
+      res.status(200).json({
+        message: 'Payment successful',
+        bookingId: booking._id,
+        staff_name: staff.name,
+        total_paid: booking.total,
+        status: booking.status
+      });
+    } catch (error) {
+      console.error('Error during payment processing:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+
+
+  
+  // Controller to get details of a booking by bookingId and staffId
+  export const getBookingDetails = async (req, res) => {
+    try {
+      const { bookingId, staffId } = req.params;  // Get bookingId and staffId from URL params
+  
+      // 1. Find the booking details and populate necessary fields
+      const booking = await Booking.findById(bookingId)
+        .populate('staff')             // Populate staff details
+        .populate('diagnostic')        // Populate diagnostic center details
+        .populate({
+          path: 'diagnostic.tests',    // Populate the embedded tests within the diagnostic center
+          select: 'test_name price offerPrice description image' // Select relevant fields
+        });
+  
+      if (!booking) {
+        return res.status(400).json({ message: 'Booking not found' });
+      }
+  
+      // 2. Find the staff details using staffId
+      const staff = await Staff.findById(staffId);
+      if (!staff) {
+        return res.status(400).json({ message: 'Staff not found' });
+      }
+  
+      // 3. Check if the staff is associated with the booking
+      if (booking.staff._id.toString() !== staff._id.toString()) {
+        return res.status(403).json({ message: 'Staff does not have access to this booking' });
+      }
+  
+      // 4. Prepare the response data
+      const bookingDetails = {
+        bookingId: booking._id,
+        patient_name: booking.patient_name,
+        staff_name: booking.staff.name,
+        diagnostic_name: booking.diagnostic.name,
+        diagnostic_image: booking.diagnostic.image,
+        diagnostic_address: booking.diagnostic.address,
+        consultation_fee: booking.consultation_fee,
+        tests: booking.diagnostic.tests.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          description: test.description,
+          image: test.image
+        })),
+        appointment_date: booking.appointment_date,
+        gender: booking.gender,
+        age: booking.age,
+        subtotal: booking.subtotal,
+        gst_on_tests: booking.gst_on_tests,
+        gst_on_consultation: booking.gst_on_consultation,
+        total: booking.total,
+        status: booking.status
+      };
+  
+      // 5. Send response with booking details
+      res.status(200).json({
+        message: 'Booking details fetched successfully',
+        booking: bookingDetails
+      });
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
+  
+  
+  
+  
 
   
   // Get all bookings created by a specific staff member
@@ -157,4 +283,100 @@ export const getStaffBookings = async (req, res) => {
       res.status(500).json({ message: 'Server error', error });
     }
   };
+
+
+  export const removeTestFromBooking = async (req, res) => {
+    try {
+      const { staffId } = req.params;
+      const { bookingId, testId } = req.body;
+  
+      // 1. Find booking and populate only diagnostic and staff
+      const booking = await Booking.findById(bookingId)
+        .populate('diagnostic')
+        .populate('staff');
+  
+      if (!booking) {
+        return res.status(400).json({ message: 'Booking not found' });
+      }
+  
+      if (!booking.staff || booking.staff._id.toString() !== staffId) {
+        return res.status(403).json({ message: 'Staff does not have access to this booking' });
+      }
+  
+      const diagnostic = booking.diagnostic;
+      const diagnosticTests = diagnostic.tests;
+  
+      // 2. Filter out the removed test
+      const updatedTestIds = booking.tests.filter(id => id.toString() !== testId);
+  
+      if (updatedTestIds.length === booking.tests.length) {
+        return res.status(400).json({ message: 'Test not found in the booking' });
+      }
+  
+      // 3. Get the full test details from Diagnostic.tests using updated IDs
+      const updatedTestDetails = diagnosticTests.filter(test =>
+        updatedTestIds.some(id => id.toString() === test._id.toString())
+      );
+  
+      // 4. Recalculate subtotal
+      let subtotal = 0;
+      for (let test of updatedTestDetails) {
+        const price = test.offerPrice || test.price;
+        subtotal += price || 0;
+      }
+  
+      const gst_on_tests = (subtotal * 18) / 100;
+      const consultation_fee = diagnostic.consultation_fee || 0;
+      const gst_on_consultation = (consultation_fee * 18) / 100;
+      const total = subtotal + gst_on_tests + consultation_fee + gst_on_consultation;
+  
+      // 5. Save updated booking
+      booking.tests = updatedTestIds;
+      booking.subtotal = subtotal;
+      booking.gst_on_tests = gst_on_tests;
+      booking.consultation_fee = consultation_fee;
+      booking.gst_on_consultation = gst_on_consultation;
+      booking.total = total;
+  
+      await booking.save();
+  
+      // 6. Send response
+      res.status(200).json({
+        message: 'Test removed and booking updated successfully',
+        bookingId: booking._id,
+        booking: {
+          patient_name: booking.patient_name,
+          staff_name: booking.staff.name,
+          diagnostic_name: diagnostic.name,
+          diagnostic_image: diagnostic.image,
+          diagnostic_address: diagnostic.address,
+          consultation_fee,
+          tests: updatedTestDetails.map(test => ({
+            testId: test._id,
+            test_name: test.test_name,
+            description: test.description,
+            price: test.price,
+            offerPrice: test.offerPrice || test.price,
+            image: test.image
+          })),
+          appointment_date: booking.appointment_date,
+          gender: booking.gender,
+          age: booking.age,
+          subtotal,
+          gst_on_tests,
+          gst_on_consultation,
+          total,
+          status: booking.status
+        }
+      });
+    } catch (error) {
+      console.error('Error removing test from booking:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
+  ;
+  
+  
+  
+  
   

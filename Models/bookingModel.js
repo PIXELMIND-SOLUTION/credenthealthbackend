@@ -4,16 +4,17 @@ import mongoose from 'mongoose';
 const bookingSchema = new mongoose.Schema({
   patient_name: {
     type: String,
-    required: true,
   },
   category: {
     type: String, // diagnostic, etc.
-    required: true,
+  },
+  diagnostic: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Diagnostic',  // Reference to the Diagnostic model
   },
   doctor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Doctor',
-    required: true,
   },
   tests: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -21,32 +22,31 @@ const bookingSchema = new mongoose.Schema({
   }],
   subtotal: {
     type: Number,
-    required: true,
   },
   consultation_fee: {
     type: Number,
-    required: true,
   },
   gst_on_tests: {
     type: Number,
-    required: true,
   },
   gst_on_consultation: {
     type: Number,
-    required: true,
   },
   total: {
     type: Number,
-    required: true,
   },
   appointment_date: {
     type: Date,
-    required: true,
   },
   staff: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Staff',  // Associate the staff member who processed the booking
-    required: true,
+    ref: 'Staff',
+  },
+  gender: {  // Added gender field without required validation
+    type: String, // You can make it 'String' or 'Enum' based on the gender options you'd like to allow
+  },
+  age: {  // Added age field without required validation
+    type: Number,
   },
   status: {
     type: String,

@@ -34,6 +34,40 @@ const staffSchema = new mongoose.Schema({
       ref: 'Booking',
     }
   ],
+  wallet_balance: { 
+    type: Number, 
+    default: 0  // Initial wallet balance is 0
+  },
+  doctorAppointments: [{
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment',
+    },
+    doctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Doctor',
+    },
+    appointment_date: {
+      type: Date,
+    },
+    status: {
+      type: String,
+      enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
+      default: 'Pending',
+    },
+    patient_name: {
+      type: String,
+    },
+    patient_relation: {
+      type: String,
+    },
+    subtotal: {
+      type: Number,
+    },
+    total: {
+      type: Number,
+    },
+  }],
 }, { timestamps: true });
 
 const Staff = mongoose.model('Staff', staffSchema);

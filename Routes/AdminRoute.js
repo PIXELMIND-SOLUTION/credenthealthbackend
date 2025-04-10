@@ -1,12 +1,22 @@
 import express from 'express';
 import { signupAdmin,
     loginAdmin,
-    createDoctorDetails,
     getDoctorDetails,
-    getDoctorById,
     updateDoctorDetails,
     createStaffProfile,
-    getDoctorTestsById
+    getDoctorTestsById,
+    createDiagnosticDetails, 
+    updateDiagnosticDetails, 
+    deleteDiagnosticDetails,
+    getAllDiagnostics,
+    getDiagnosticById,
+    getAllTests,
+    addAmountToWallet,
+    createDoctor,
+    getAllDoctors,
+    getDoctorById,
+    updateDoctor,
+    deleteDoctor
  } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
@@ -18,7 +28,6 @@ router.post('/signup', signupAdmin);
 router.post('/login', loginAdmin);
 
 // Route to create new doctor details
-router.post('/create-doctor', createDoctorDetails);
 
 // Route to get all doctor details
 router.get('/getalldoctors', getDoctorDetails);
@@ -32,6 +41,37 @@ router.get('/gettest/:id', getDoctorTestsById);
 router.put('/update-doctor/:id', updateDoctorDetails);
 // Route to create a new staff profile (admin only)
 router.post('/create-staff', createStaffProfile);
+router.post('/addamount/:staffId', addAmountToWallet);
+
+
+
+// Route to create a new diagnostic center along with tests
+router.post('/create-diagnostic', createDiagnosticDetails);
+router.get('/alldiagnostics', getAllDiagnostics);
+router.get('/get-single/:diagnosticId', getDiagnosticById);
+router.get('/alltest/:diagnosticId', getAllTests);
+
+
+
+// Route to update an existing diagnostic center by its ID
+router.put('/update-diagnostic/:diagnosticId', updateDiagnosticDetails);
+
+// Route to delete a diagnostic center by its ID
+router.delete('/delete-diagnostic/:diagnosticId', deleteDiagnosticDetails);
+
+// Create
+router.post('/create-doctor', createDoctor);
+
+// Read
+router.get('/getdoctors', getAllDoctors);
+router.get('/single-doctor/:id', getDoctorById);
+
+// Update
+router.put('/update-doctor/:id', updateDoctor);
+
+// Delete
+router.delete('/remvoe-doctors/:id', deleteDoctor);
+
 
 // Route for staff login
 

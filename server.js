@@ -4,9 +4,9 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import connectDatabase from './db/connectDatabase.js';
-import staffRoutes from './Routes/staffRoutes.js';
 import bookingRoutes from './Routes/bookingRotes.js'
 import adminRoutes from './Routes/AdminRoute.js'
+import staffRoutes from './Routes/StaffRoute.js'
 
 dotenv.config();
 

@@ -4,9 +4,9 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import connectDatabase from './db/connectDatabase.js';
-import AdminRoutes from './Routes/AdminRoutes.js'
-import StaffRoutes from './Routes/StaffRoutes.js'
-import StudentRoutes from './Routes/StudentRoutes.js'
+import adminRoutes from './Routes/adminRoutes.js';
+import staffRoutes from './Routes/staffRoutes.js';
+import bookingRoutes from './Routes/bookingRotes.js'
 
 dotenv.config();
 
@@ -29,15 +29,19 @@ app.use(cookieParser());
 connectDatabase();
 
 
-app.use('/api/admin', AdminRoutes)
-app.use('/api/staff', StaffRoutes)
-app.use('/api/user', StudentRoutes)
+
+app.use('/api/admin', adminRoutes); // Use the admin routes
+app.use('/api/staff', staffRoutes); // Use the admin routes
+app.use('/api/booking', bookingRoutes); // Use the admin routes
+
+
+
 
 
 
 // Default route
 app.get("/", (req, res) => {
- res.json({ message: "Hello from Macbell" });
+ res.json({ message: "Hello from CredenHealth" });
 });
 
 // Start the server

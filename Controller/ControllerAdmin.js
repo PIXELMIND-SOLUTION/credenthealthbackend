@@ -435,36 +435,41 @@ export const deleteDiagnosticDetails = async (req, res) => {
 
 // Controller to add amount to staff wallet
 export const addAmountToWallet = async (req, res) => {
-  try {
-    const { staffId } = req.params;  // Get staffId from URL params
-    const { amount } = req.body;     // Amount to be added to the wallet
+    try {
+        const { staffId } = req.params;
+        const { amount, from } = req.body;
     
-    // Validate that the amount is a positive number
-    if (amount <= 0) {
-      return res.status(400).json({ message: 'Amount to be added must be greater than zero' });
-    }
-
-    // Find the staff member by their staffId
-    const staff = await Staff.findById(staffId);
-    if (!staff) {
-      return res.status(400).json({ message: 'Staff not found' });
-    }
-
-    // Add the amount to the staff wallet
-    staff.wallet_balance += amount;
-
-    // Save the updated staff data
-    await staff.save();
-
-    // Respond with the updated wallet balance
-    res.status(200).json({
-      message: 'Amount successfully added to wallet',
-      wallet_balance: staff.wallet_balance,  // Send back the updated wallet balance
-    });
-  } catch (error) {
-    console.error('Error adding amount to wallet:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+        if (!amount || amount <= 0) {
+          return res.status(400).json({ message: 'Amount must be greater than zero' });
+        }
+    
+        const staff = await Staff.findById(staffId);
+        if (!staff) {
+          return res.status(404).json({ message: 'Staff not found' });
+        }
+    
+        // Credit the amount to wallet_balance
+        staff.wallet_balance += amount;
+    
+        // Log the transaction
+        staff.wallet_logs = staff.wallet_logs || [];
+        staff.wallet_logs.push({
+          type: 'credit',
+          amount: amount,
+          from: from || 'Admin',
+          date: new Date(),
+        });
+    
+        await staff.save();
+    
+        res.status(200).json({
+          message: 'Amount credited to staff wallet successfully',
+          wallet_balance: staff.wallet_balance,
+        });
+      } catch (error) {
+        console.error('Error crediting wallet:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+      }
 };
 
 
@@ -480,18 +485,55 @@ export const createDoctor = async (req, res) => {
     }
   };
 
-// Get all doctors
+// Get all doctors with filters
 export const getAllDoctors = async (req, res) => {
     try {
-      const { category } = req.query;
-      const filter = category ? { category } : {};
+      // Extract query parameters for filtering
+      const { category, department, sortBy, consultationType, consultation_fee } = req.query;
+  
+      // Build the filter object
+      const filter = {};
+  
+      if (category) {
+        filter.category = category;
+      }
+  
+      if (department) {
+        filter.department = department;
+      }
+  
+      if (consultationType) {
+        filter.consultationType = consultationType;
+      }
+  
+      if (consultation_fee) {
+        filter.consultation_fee = { $lte: consultation_fee }; // assuming we want to filter by price less than or equal to the value provided
+      }
+  
+      // Find doctors based on the filter
       const doctors = await Doctor.find(filter);
+  
+      // If no doctors match the filter, return a custom message
+      if (doctors.length === 0) {
+        return res.status(404).json({ message: 'No doctors found matching the criteria' });
+      }
+  
+      // Sorting if a sortBy parameter is provided
+      if (sortBy) {
+        const [field, order] = sortBy.split(','); // assuming sortBy is passed as "field,order" (e.g. "price,asc")
+        const sortOrder = order === 'desc' ? -1 : 1;
+        doctors.sort((a, b) => (a[field] > b[field] ? sortOrder : -sortOrder)); // Basic in-memory sorting
+      }
+  
+      // Return filtered and sorted doctors
       res.status(200).json(doctors);
+  
     } catch (error) {
       console.error('Error fetching doctors:', error);
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
   // Get doctor by ID
   export const getDoctorById = async (req, res) => {

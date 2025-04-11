@@ -111,49 +111,70 @@ export const bookAppointment = async (req, res) => {
   };
 
 
-  // Controller to handle payment for the booking and deduct from staff wallet
+ // Controller to handle payment for the booking and deduct from staff wallet
 export const processPayment = async (req, res) => {
-    try {
-      const { bookingId, staffId } = req.params;  // Get bookingId and staffId from URL params
-  
-      // 1. Find the booking details and populate necessary fields
-      const booking = await Booking.findById(bookingId).populate('staff');
-      if (!booking) {
-        return res.status(400).json({ message: 'Booking not found' });
-      }
-  
-      // 2. Find the staff details using staffId
-      const staff = await Staff.findById(staffId);
-      if (!staff) {
-        return res.status(400).json({ message: 'Staff not found' });
-      }
-  
-      // 3. Check if the staff has enough balance to pay for the booking
-      if (staff.wallet_balance < booking.total) {
-        return res.status(400).json({ message: 'Insufficient wallet balance' });
-      }
-  
-      // 4. Deduct the total amount from the staff's wallet balance
-      staff.wallet_balance -= booking.total;
-      await staff.save();
-  
-      // 5. Update the booking status to 'Paid'
-      booking.status = 'Paid';
-      await booking.save();
-  
-      // 6. Respond with success message and the updated booking
-      res.status(200).json({
-        message: 'Payment successful',
-        bookingId: booking._id,
-        staff_name: staff.name,
-        total_paid: booking.total,
-        status: booking.status
-      });
-    } catch (error) {
-      console.error('Error during payment processing:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    const { bookingId, staffId } = req.params; // Get bookingId and staffId from URL params
+
+    // 1. Find the booking and populate diagnostic + staff
+    const booking = await Booking.findById(bookingId)
+      .populate('diagnostic')
+      .populate('staff');
+
+    if (!booking) {
+      return res.status(400).json({ message: 'Booking not found' });
     }
+
+    // 2. Find the staff details using staffId
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(400).json({ message: 'Staff not found' });
+    }
+
+    // 3. Check if the staff has enough balance
+    if (staff.wallet_balance < booking.total) {
+      return res.status(400).json({ message: 'Insufficient wallet balance' });
+    }
+
+    // 🪵 Log the diagnostic for confirmation
+    console.log('Diagnostic Info:', booking.diagnostic);
+
+    // 4. Deduct the amount from the wallet
+    staff.wallet_balance -= booking.total;
+
+    // 5. Add transaction to wallet_logs
+    const transaction = {
+      type: 'debit',
+      amount: booking.total,
+      from: 'Staff Wallet',
+      to: booking.diagnostic?.name || 'Diagnostic Center',
+      date: new Date(),
+    };
+    staff.wallet_logs.push(transaction);
+
+    await staff.save();
+
+    // 6. Update booking status
+    booking.status = 'Paid';
+    await booking.save();
+
+    // 7. Send response
+    res.status(200).json({
+      message: 'Payment successful',
+      bookingId: booking._id,
+      staff_name: staff.name,
+      diagnostic_name: booking.diagnostic?.name || 'Diagnostic Center',
+      total_paid: booking.total,
+      status: booking.status,
+      wallet_balance: staff.wallet_balance,
+    });
+
+  } catch (error) {
+    console.error('Error during payment processing:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
+
 
 
 

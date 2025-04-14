@@ -3,7 +3,12 @@ import generateToken from '../config/jwtToken.js';
 import Staff from '../Models/staffModel.js';
 import Doctor from '../Models/doctorModel.js';
 import Diagnostic from '../Models/diagnosticModel.js';
-
+import { uploadDocuments, uploadTestImages, uploadCompanyAssets, uploadStaffImages, uploadDoctorImage  } from '../config/multerConfig.js';
+import Booking from '../Models/bookingModel.js';
+import Appointment from '../Models/Appointment.js';
+import Company from '../Models/companyModel.js';
+import mongoose from 'mongoose';
+import Category from '../Models/Category.js';
 
 // Admin Signup
 export const signupAdmin = async (req, res) => {
@@ -73,6 +78,27 @@ export const loginAdmin = async (req, res) => {
         res.status(500).json({ message: 'Server error', error });
     }
 };
+
+
+// Admin Logout Controller
+export const logoutAdmin = async (req, res) => {
+  try {
+    // Clear the JWT token cookie if it's stored in a cookie
+    res.clearCookie('token', {
+      httpOnly: true, // Prevents JavaScript access to the cookie
+      secure: process.env.NODE_ENV === 'production', // Secure flag for production (HTTPS)
+      sameSite: 'strict', // CSRF protection
+    });
+
+    // Send response indicating successful logout
+    res.status(200).json({
+      message: "Logout successful. Token cleared from cookies.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Logout failed", error });
+  }
+};
+
 
 // Create Doctor Details
 export const createDoctorDetails = async (req, res) => {
@@ -212,94 +238,232 @@ export const updateDoctorDetails = async (req, res) => {
 };
 
 
-// Admin creating a new staff profile
+// ✅ Admin creating a new staff profile and linking it to a company
 export const createStaffProfile = async (req, res) => {
-    try {
-        const { name, email, password, contact_number, address } = req.body;
+  const { companyId } = req.params;
 
-        // Check if the staff already exists
-        const existingStaff = await Staff.findOne({ email });
-        if (existingStaff) {
-            return res.status(400).json({ message: 'Staff with this email already exists' });
-        }
+  // 🔍 Log the companyId for debugging
+  console.log("👉 Received companyId:", companyId);
 
-        // Create new staff profile
-        const newStaff = new Staff({
-            name,
-            email,
-            password, // In a real app, hash the password
-            contact_number,
-            address,
-            role: 'Staff', // Default role as 'Staff'
-        });
+  // 🔒 Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(companyId)) {
+    return res.status(400).json({ message: "Invalid company ID format" });
+  }
 
-        await newStaff.save();
+  // 1. Wrap multer upload in a Promise to use with async/await
+  const handleUpload = () => {
+    return new Promise((resolve, reject) => {
+      uploadStaffImages(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  };
 
-        // Generate a token for the staff
-        const token = generateToken(newStaff._id);
+  try {
+    await handleUpload(); // ⏫ Upload profileImage and idImage
 
-        // Send all staff data in the response, including staffId
-        res.status(201).json({
-            message: 'Staff profile created successfully',
-            token,
-            staff: {
-                id: newStaff._id.toString(), // Include the staff ID as a string
-                name: newStaff.name,
-                email: newStaff.email,
-                contact_number: newStaff.contact_number,
-                address: newStaff.address,
-                role: newStaff.role
-            },
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+    const {
+      name,
+      email,
+      password, // ⚠️ Should be hashed in production
+      contact_number,
+      address,
+      dob,
+      gender,
+      age,
+    } = req.body;
+
+    // 2. Check for existing staff with the same email
+    const existingStaff = await Staff.findOne({ email });
+    if (existingStaff) {
+      return res.status(400).json({ message: "Staff with this email already exists" });
     }
-};
 
+    // 3. Extract uploaded image paths
+    const profileImagePath = req.files?.profileImage?.[0]?.path || "";
+    const idImagePath = req.files?.idImage?.[0]?.path || "";
+
+    // 4. Create a new staff document in the Staff collection
+    const newStaff = new Staff({
+      name,
+      email,
+      password, // ⚠️ Remember to hash the password in production
+      contact_number,
+      address,
+      dob,
+      gender,
+      age,
+      role: "Staff",
+      profileImage: profileImagePath,
+      idImage: idImagePath,
+    });
+
+    // 5. Save the staff document to the Staff collection
+    const savedStaff = await newStaff.save();
+
+    // 6. Prepare data to push into company's `staff[]` array
+    const staffMember = {
+      _id: savedStaff._id,  // Link the staff member to the company using the saved staff ID
+      name: savedStaff.name,
+      role: "Staff",
+      contact: savedStaff.contact_number,
+      email: savedStaff.email,
+      dob: savedStaff.dob,
+      gender: savedStaff.gender,
+      age: savedStaff.age,
+      address: savedStaff.address,
+      profileImage: savedStaff.profileImage,
+      idImage: savedStaff.idImage,
+      walletAmount: 0,  // Default wallet amount
+    };
+
+    // 7. Find the company and push the staff member to `staff[]`
+    const updatedCompany = await Company.findByIdAndUpdate(
+      companyId,
+      { $push: { staff: staffMember } },
+      { new: true }
+    );
+
+    if (!updatedCompany) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // 8. Send back the response
+    res.status(201).json({
+      message: "Staff profile created and linked to company successfully",
+      staff: {
+        id: savedStaff._id,
+        name: savedStaff.name,
+        email: savedStaff.email,
+        contact_number: savedStaff.contact_number,
+        address: savedStaff.address,
+        role: savedStaff.role,
+        profileImage: savedStaff.profileImage,
+        idImage: savedStaff.idImage,
+      },
+      company: updatedCompany,
+    });
+
+  } catch (error) {
+    console.error("❌ Error creating staff profile:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
 
 //book a diagnostics
 
-// Create new Diagnostic Center and its Tests
+
 export const createDiagnosticDetails = async (req, res) => {
-    try {
+  try {
+    // 🧪 Step 1: Upload test images
+    uploadTestImages(req, res, async (testImageError) => {
+      if (testImageError) {
+        console.log("❌ Test image upload failed:", testImageError);
+        return res.status(400).json({ message: "Test image upload failed", error: testImageError.message });
+      }
+
+      try {
+        // ✅ Log incoming form data and files
+        console.log("📥 req.body:", req.body);  // Log the entire form data
+        console.log("📁 req.files:", req.files);  // Log uploaded files
+
+        // Parse individual fields from the flat req.body
         const {
-            name,
-            image,  // Image for the diagnostic center
-            address,
-            tests  // Array of tests
+          name,
+          image,
+          address,
+          centerType,
+          email,
+          phone,
+          gstNumber,
+          centerStrength,
+          country,
+          state,
+          city,
+          pincode,
+          password,
         } = req.body;
 
-        // Validate tests to ensure each test has all necessary fields
-        const validatedTests = tests.map(test => {
-            if (!test.test_name || !test.description || !test.price) {
-                throw new Error('Each test must have a name, description, and price');
+        // Parse contact persons and tests from flat fields in req.body
+        const contactPersons = [];
+        const tests = [];
+
+        // Loop through the flat fields to extract contactPersons and tests
+        Object.keys(req.body).forEach((key) => {
+          if (key.startsWith("contactPersons")) {
+            const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'contactPersons[0].name')
+            const field = key.split(".")[1]; // Extract field name (e.g., 'name', 'designation')
+
+            if (!contactPersons[index]) {
+              contactPersons[index] = {}; // Initialize contact person object if not already created
             }
-            // Ensure offerPrice is always provided or defaults to price
-            test.offerPrice = test.offerPrice || test.price;
-            return test;
+            contactPersons[index][field] = req.body[key]; // Add the field to the respective contact person object
+          }
+
+          if (key.startsWith("tests")) {
+            const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'tests[0].test_name')
+            const field = key.split(".")[1]; // Extract field name (e.g., 'test_name', 'description')
+
+            if (!tests[index]) {
+              tests[index] = {}; // Initialize test object if not already created
+            }
+            tests[index][field] = req.body[key]; // Add the field to the respective test object
+          }
         });
 
-        // Create a new diagnostic center with the provided details
+        // 🧪 Attach uploaded test images to the tests
+        if (req.file) {
+          tests.forEach((test, index) => {
+            test.image = req.file.path || null; // Attach image path if file exists
+          });
+        }
+
+        console.log("Contact Persons:", contactPersons);
+        console.log("Tests:", tests);
+
+        // 🏥 Create Diagnostic center object
         const newDiagnostic = new Diagnostic({
-            name,
-            image,
-            address,
-            tests: validatedTests
+          name,
+          image,  // Assuming this is the company image or other image field
+          address,
+          centerType,
+          email,
+          phone,
+          gstNumber,
+          centerStrength,
+          country,
+          state,
+          city,
+          pincode,
+          contactPersons: contactPersons || [], // Ensure it's an array
+          password,
+          tests: tests || [], // Ensure it's an array
+          testImages: req.files ? req.files.map((file) => file.path) : [], // Save test image path if present
         });
 
-        // Save the diagnostic center to the database
         await newDiagnostic.save();
 
-        // Send the response back
+        console.log("✅ Diagnostic center saved:", newDiagnostic);
+
         res.status(201).json({
-            message: 'Diagnostic center created successfully',
-            diagnostic: newDiagnostic
+          message: "Diagnostic center created successfully",
+          diagnostic: newDiagnostic,
         });
-    } catch (error) {
-        console.error('Error creating diagnostic details:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+      } catch (err) {
+        console.error("💥 Error while processing form data:", err);
+        res.status(500).json({ message: "Server error", error: err.message });
+      }
+    });
+  } catch (error) {
+    console.error("🔥 Unexpected error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
+
 
 // Get all Diagnostic Centers
 export const getAllDiagnostics = async (req, res) => {
@@ -435,55 +599,97 @@ export const deleteDiagnosticDetails = async (req, res) => {
 
 // Controller to add amount to staff wallet
 export const addAmountToWallet = async (req, res) => {
-    try {
-        const { staffId } = req.params;
-        const { amount, from } = req.body;
-    
-        if (!amount || amount <= 0) {
-          return res.status(400).json({ message: 'Amount must be greater than zero' });
-        }
-    
-        const staff = await Staff.findById(staffId);
-        if (!staff) {
-          return res.status(404).json({ message: 'Staff not found' });
-        }
-    
-        // Credit the amount to wallet_balance
-        staff.wallet_balance += amount;
-    
-        // Log the transaction
-        staff.wallet_logs = staff.wallet_logs || [];
-        staff.wallet_logs.push({
-          type: 'credit',
-          amount: amount,
-          from: from || 'Admin',
-          date: new Date(),
-        });
-    
-        await staff.save();
-    
-        res.status(200).json({
-          message: 'Amount credited to staff wallet successfully',
-          wallet_balance: staff.wallet_balance,
-        });
-      } catch (error) {
-        console.error('Error crediting wallet:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+      const { staffId, companyId } = req.params;  // Accept companyId in the params
+      const { amount, from } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Amount must be greater than zero' });
       }
+
+      // 1. Find the staff member by staffId
+      const staff = await Staff.findById(staffId);
+      if (!staff) {
+        return res.status(404).json({ message: 'Staff not found' });
+      }
+
+      // 2. Update the wallet balance in the Staff model
+      staff.wallet_balance += amount;
+
+      // Log the transaction
+      staff.wallet_logs = staff.wallet_logs || [];
+      staff.wallet_logs.push({
+        type: 'credit',
+        amount: amount,
+        from: from || 'Admin',
+        date: new Date(),
+      });
+
+      // Save the staff document
+      await staff.save();
+
+      // 3. Update the staff wallet balance in the company's `staff[]` array
+      const updatedCompany = await Company.findOneAndUpdate(
+        { _id: companyId, "staff._id": staffId },  // Find the company and staff member
+        { $set: { "staff.$.wallet_balance": staff.wallet_balance } },  // Update wallet balance in the company's staff array
+        { new: true }
+      );
+
+      if (!updatedCompany) {
+        return res.status(404).json({ message: 'Company or staff not found in company' });
+      }
+
+      // 4. Respond with the updated wallet balance
+      res.status(200).json({
+        message: 'Amount credited to staff wallet successfully',
+        wallet_balance: staff.wallet_balance,
+      });
+  } catch (error) {
+      console.error('Error crediting wallet:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 
 // Create Doctor
 export const createDoctor = async (req, res) => {
-    try {
-      const doctor = new Doctor(req.body);
+  try {
+    // First handle the image upload
+    uploadDoctorImage(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ message: 'Error uploading image', error: err.message });
+      }
+
+      // After the image is uploaded, create the doctor with the form data
+      const { name, specialization, qualification, description, consultation_fee, address, category } = req.body;
+
+      // Get the image path (this will be the file path saved in the uploads directory)
+      const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : null;  // Save the image path in the DB
+
+      // Create a new Doctor document
+      const doctor = new Doctor({
+        name,
+        specialization,
+        qualification,
+        description,
+        consultation_fee,
+        address,
+        image,
+        category,
+      });
+
+      // Save the doctor to the database
       await doctor.save();
+
+      // Send response back
       res.status(201).json({ message: 'Doctor created successfully', doctor });
-    } catch (error) {
-      console.error('Error creating doctor:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
-  };
+    });
+  } catch (error) {
+    console.error('Error creating doctor:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 // Get all doctors with filters
 export const getAllDoctors = async (req, res) => {
@@ -574,6 +780,275 @@ export const getAllDoctors = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+
+// Controller to get all diagnostic bookings with optional status filter
+export const getAllDiagnosticBookings = async (req, res) => {
+  try {
+    const { status } = req.body; // Get status filter from the request body (optional)
+
+    // 1. Find all bookings
+    const bookings = await Booking.find()
+      .populate('staff')  // Populate staff details
+      .populate('diagnostic')  // Populate diagnostic center details
+      .populate({
+        path: 'diagnostic.tests',  // Populate the embedded tests
+        select: 'test_name price offerPrice description image'
+      });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ message: 'No bookings found' });
+    }
+
+    // 2. Apply status filter if provided
+    const filteredBookings = status
+      ? bookings.filter((booking) => booking.status === status)
+      : bookings;
+
+    // 3. Format booking details
+    const bookingDetails = filteredBookings.map((booking) => {
+      return {
+        bookingId: booking._id,
+        patient_name: booking.patient_name,
+        patient_age: booking.age,
+        patient_gender: booking.gender,
+        staff_name: booking.staff ? booking.staff.name : 'N/A',
+        diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+        diagnostic_image: booking.diagnostic?.image || '',
+        diagnostic_address: booking.diagnostic?.address || '',
+        consultation_fee: booking.consultation_fee || 0,
+        tests: booking.diagnostic?.tests?.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          description: test.description,
+          image: test.image
+        })) || [],
+        appointment_date: booking.appointment_date,
+        gender: booking.gender,
+        age: booking.age,
+        subtotal: booking.subtotal,
+        gst_on_tests: booking.gst_on_tests,
+        gst_on_consultation: booking.gst_on_consultation,
+        total: booking.total,
+        status: booking.status
+      };
+    });
+
+    // 4. Send response
+    res.status(200).json({
+      message: 'All bookings fetched successfully',
+      bookings: bookingDetails
+    });
+  } catch (error) {
+    console.error('Error fetching all bookings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+export const getAllDoctorAppointments = async (req, res) => {
+  try {
+    // Fetch all appointments from the Appointment model
+    const appointments = await Appointment.find()
+      .populate({
+        path: 'doctor',
+        select: 'name specialization image'
+      })
+      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor');
+
+    res.status(200).json({
+      message: 'All doctor appointments fetched successfully',
+      appointments: appointments.map((appointment) => ({
+        appointmentId: appointment._id,
+        doctor_name: appointment.doctor?.name,
+        doctor_specialization: appointment.doctor?.specialization,
+        doctor_image: appointment.doctor?.image,
+        appointment_date: appointment.appointment_date,
+        status: appointment.status,
+        patient_name: appointment.patient_name,
+        patient_relation: appointment.patient_relation,
+        age: appointment.age,
+        gender: appointment.gender,
+        subtotal: appointment.subtotal,
+        total: appointment.total,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const createCompany = (req, res) => {
+  // Call multer middleware manually
+  uploadCompanyAssets(req, res, async (err) => {
+    if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({ message: 'File upload failed', error: err.message });
+    }
+
+    try {
+      const {
+        name,
+        companyType,
+        assignedBy,
+        registrationDate,
+        contractPeriod,
+        renewalDate,
+        insuranceBroker,
+        email,
+        phone,
+        gstNumber,
+        companyStrength,
+        country,
+        state,
+        city,
+        pincode,
+        contactPerson
+      } = req.body;
+
+      // 🔍 Parse contactPerson JSON string if sent as stringified JSON
+      const parsedContactPerson = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
+
+      // 📂 Handle uploaded files
+      const imageFile = req.files?.image?.[0]?.path || '';
+      const documents = req.files?.documents?.map(doc => doc.path) || [];
+
+      // 🧾 Create and save company
+      const newCompany = new Company({
+        name,
+        companyType,
+        assignedBy,
+        registrationDate,
+        contractPeriod,
+        renewalDate,
+        insuranceBroker,
+        email,
+        phone,
+        gstNumber,
+        companyStrength,
+        image: imageFile,
+        country,
+        state,
+        city,
+        pincode,
+        contactPerson: {
+          name: parsedContactPerson?.name,
+          designation: parsedContactPerson?.designation,
+          gender: parsedContactPerson?.gender,
+          email: parsedContactPerson?.email,
+          phone: parsedContactPerson?.phone,
+          address: {
+            country: parsedContactPerson?.address?.country,
+            state: parsedContactPerson?.address?.state,
+            city: parsedContactPerson?.address?.city,
+            pincode: parsedContactPerson?.address?.pincode,
+            street: parsedContactPerson?.address?.street
+          }
+        },
+        documents
+      });
+
+      const savedCompany = await newCompany.save();
+
+      res.status(201).json({
+        message: 'Company created successfully',
+        company: savedCompany
+      });
+    } catch (error) {
+      console.error('Error creating company:', error);
+      res.status(500).json({ message: 'Server error', error });
+    }
+  });
+};
+
+
+export const getCompanies = async (req, res) => {
+  try {
+    const companies = await Company.find().sort({ createdAt: -1 });
+    res.status(200).json({
+      message: 'Companies fetched successfully',
+      companies,
+    });
+  } catch (error) {
+    console.error('Error fetching companies:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+// Fetch company and its staff by companyId
+export const getCompanyWithStaff = async (req, res) => {
+  const { companyId } = req.params; // Retrieve companyId from the URL params
+
+  try {
+    // Fetch company by companyId and populate staff array
+    const company = await Company.findById(companyId).populate('staff');
+
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    res.status(200).json({
+      message: 'Company and staff fetched successfully',
+      company,
+    });
+  } catch (error) {
+    console.error('Error fetching company with staff:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+
+// Controller to create a new category
+export const createCategory = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    // Check if category already exists
+    const existingCategory = await Category.findOne({ name });
+    if (existingCategory) {
+      return res.status(400).json({ message: 'Category already exists' });
+    }
+
+    // Create new category
+    const category = new Category({
+      name,
+      description,
+    });
+
+    await category.save();
+
+    res.status(201).json({
+      message: 'Category created successfully',
+      category,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creating category' });
+  }
+};
+
+// Controller to get all categories
+export const getAllCategories = async (req, res) => {
+  try {
+    const categories = await Category.find();
+
+    if (categories.length === 0) {
+      return res.status(404).json({ message: 'No categories found' });
+    }
+
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching categories' });
+  }
+};
+
   
   
 

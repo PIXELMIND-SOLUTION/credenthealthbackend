@@ -16,7 +16,15 @@ import { signupAdmin,
     getAllDoctors,
     getDoctorById,
     updateDoctor,
-    deleteDoctor
+    deleteDoctor,
+    getAllDiagnosticBookings,
+    getAllDoctorAppointments,
+    createCompany,
+    getCompanies,
+    getCompanyWithStaff,
+    createCategory,
+    getAllCategories,
+    logoutAdmin
  } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
@@ -26,6 +34,8 @@ router.post('/signup', signupAdmin);
 
 // Route for Admin Login
 router.post('/login', loginAdmin);
+router.post('/logout', logoutAdmin);
+
 
 // Route to create new doctor details
 
@@ -40,8 +50,8 @@ router.get('/gettest/:id', getDoctorTestsById);
 // Route to update doctor details
 router.put('/update-doctor/:id', updateDoctorDetails);
 // Route to create a new staff profile (admin only)
-router.post('/create-staff', createStaffProfile);
-router.post('/addamount/:staffId', addAmountToWallet);
+router.post('/create-staff/:companyId', createStaffProfile);
+router.post('/addamount/:staffId/:companyId', addAmountToWallet);
 
 
 
@@ -71,6 +81,25 @@ router.put('/update-doctor/:id', updateDoctor);
 
 // Delete
 router.delete('/remvoe-doctors/:id', deleteDoctor);
+router.get('/alldiagnosticsbookings', getAllDiagnosticBookings);
+router.get('/alldoctorbookings', getAllDoctorAppointments);
+
+
+router.post('/create-company', createCompany);
+router.get('/companies', getCompanies);
+router.get('/companystaffs/:companyId', getCompanyWithStaff);
+
+
+// Route to create a new category
+router.post('/create-category', createCategory);
+
+// Route to get all categories
+router.get('/getallcategory', getAllCategories);
+
+
+
+
+
 
 
 // Route for staff login

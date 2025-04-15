@@ -24,7 +24,18 @@ import { signupAdmin,
     getCompanyWithStaff,
     createCategory,
     getAllCategories,
-    logoutAdmin
+    logoutAdmin,
+    loginCompany,
+    logoutCompany,
+    updateBookingStatusByDiagnostic,
+    getAcceptedDiagnosticBookings,
+    getRejectedDiagnosticBookings,
+    updateAppointmentStatus,
+    getAcceptedAppointments,
+    getRejectedAppointments,
+    getCounts,
+    getCompanyById,
+    getCompanyStaffStats
  } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
@@ -60,6 +71,8 @@ router.post('/create-diagnostic', createDiagnosticDetails);
 router.get('/alldiagnostics', getAllDiagnostics);
 router.get('/get-single/:diagnosticId', getDiagnosticById);
 router.get('/alltest/:diagnosticId', getAllTests);
+router.put('/update/:bookingId', updateBookingStatusByDiagnostic);
+
 
 
 
@@ -82,12 +95,16 @@ router.put('/update-doctor/:id', updateDoctor);
 // Delete
 router.delete('/remvoe-doctors/:id', deleteDoctor);
 router.get('/alldiagnosticsbookings', getAllDiagnosticBookings);
+router.get('/allaccepteddiagnosticsbookings', getAcceptedDiagnosticBookings);
+router.get('/allrejecteddiagnosticsbookings', getRejectedDiagnosticBookings);
 router.get('/alldoctorbookings', getAllDoctorAppointments);
 
 
 router.post('/create-company', createCompany);
 router.get('/companies', getCompanies);
+router.get('/singlecompany/:companyId', getCompanyById);
 router.get('/companystaffs/:companyId', getCompanyWithStaff);
+router.get('/staffscount/:companyId', getCompanyStaffStats);
 
 
 // Route to create a new category
@@ -95,6 +112,26 @@ router.post('/create-category', createCategory);
 
 // Route to get all categories
 router.get('/getallcategory', getAllCategories);
+
+
+//login company
+router.post('/login-company', loginCompany);
+router.post('/logout-company', logoutCompany);
+
+
+// Update status of an appointment by appointmentId
+router.put('/updatestatus/:appointmentId', updateAppointmentStatus);
+
+// Get all accepted appointments
+router.get('/acceptedappointments', getAcceptedAppointments);
+
+// Get all rejected appointments
+router.get('/rejectedappointments', getRejectedAppointments);
+router.get('/getcount', getCounts);
+
+
+
+
 
 
 

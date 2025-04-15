@@ -651,7 +651,6 @@ export const addAmountToWallet = async (req, res) => {
 };
 
 
-// Create Doctor
 export const createDoctor = async (req, res) => {
   try {
     // First handle the image upload
@@ -661,7 +660,10 @@ export const createDoctor = async (req, res) => {
       }
 
       // After the image is uploaded, create the doctor with the form data
-      const { name, specialization, qualification, description, consultation_fee, address, category } = req.body;
+      const { name, specialization, qualification, description, consultation_fee, address, category, schedule } = req.body;
+
+      // Parse the schedule (string) if it's sent as a stringified JSON array
+      const parsedSchedule = schedule ? JSON.parse(schedule) : [];
 
       // Get the image path (this will be the file path saved in the uploads directory)
       const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : null;  // Save the image path in the DB
@@ -676,6 +678,7 @@ export const createDoctor = async (req, res) => {
         address,
         image,
         category,
+        schedule: parsedSchedule, // Save the parsed schedule (as an array of objects)
       });
 
       // Save the doctor to the database
@@ -689,6 +692,7 @@ export const createDoctor = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 // Get all doctors with filters
@@ -907,7 +911,9 @@ export const createCompany = (req, res) => {
         state,
         city,
         pincode,
-        contactPerson
+        contactPerson,
+        password // Added password field
+
       } = req.body;
 
       // 🔍 Parse contactPerson JSON string if sent as stringified JSON
@@ -949,7 +955,9 @@ export const createCompany = (req, res) => {
             street: parsedContactPerson?.address?.street
           }
         },
-        documents
+        documents,
+        password // Added password field
+
       });
 
       const savedCompany = await newCompany.save();
@@ -978,6 +986,28 @@ export const getCompanies = async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 };
+
+
+export const getCompanyById = async (req, res) => {
+  try {
+    const { companyId } = req.params; // Get companyId from URL parameters
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    res.status(200).json({
+      message: 'Company fetched successfully',
+      company,
+    });
+  } catch (error) {
+    console.error('Error fetching company:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
 
 
 // Fetch company and its staff by companyId
@@ -1048,6 +1078,396 @@ export const getAllCategories = async (req, res) => {
     res.status(500).json({ message: 'Error fetching categories' });
   }
 };
+
+
+
+
+///company controllers
+
+// Admin Login
+export const loginCompany = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check if company exists
+    const company = await Company.findOne({ email });
+    if (!company) {
+      return res.status(400).json({ message: 'Company does not exist' });
+    }
+
+    // Check if password matches directly (without bcrypt)
+    if (company.password !== password) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = generateToken(company._id);
+
+    // Return success message with company details and JWT token
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      company: {
+        id: company._id, // Add company ID here
+        name: company.name,
+        email: company.email,
+        companyType: company.companyType,
+        assignedBy: company.assignedBy,
+        registrationDate: company.registrationDate,
+        contractPeriod: company.contractPeriod,
+        renewalDate: company.renewalDate,
+        insuranceBroker: company.insuranceBroker,
+        gstNumber: company.gstNumber,
+        companyStrength: company.companyStrength,
+        country: company.country,
+        state: company.state,
+        city: company.city,
+        pincode: company.pincode,
+        contactPerson: company.contactPerson, // Include the contact person details
+        documents: company.documents, // Include documents if necessary
+      },
+    });
+  } catch (error) {
+    console.error('Error during company login:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+// Company Logout Controller
+export const logoutCompany = async (req, res) => {
+  try {
+    // Clear the JWT token cookie if it's stored in a cookie
+    res.clearCookie('company_token', {
+      httpOnly: true, // Prevents JavaScript access to the cookie
+      secure: process.env.NODE_ENV === 'production', // Secure flag for production (HTTPS)
+      sameSite: 'strict', // CSRF protection
+    });
+
+    // Send response indicating successful logout
+    res.status(200).json({
+      message: "Company logout successful. Token cleared from cookies.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Company logout failed", error });
+  }
+};
+
+
+// PUT controller to update status of a booking by bookingId from URL params
+export const updateBookingStatusByDiagnostic = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { newStatus } = req.body;
+
+    // Validation: Ensure newStatus is provided
+    if (!newStatus) {
+      return res.status(400).json({ message: "newStatus is required in request body" });
+    }
+
+    // Find the booking by bookingId and update its status
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { $set: { status: newStatus } },
+      { new: true }  // Return the updated booking
+    );
+
+    // Check if booking was found
+    if (!updatedBooking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.status(200).json({
+      message: `Booking status updated to "${newStatus}"`,
+      updatedBooking
+    });
+
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+// Controller to get all diagnostic bookings with status 'accepted'
+export const getAcceptedDiagnosticBookings = async (req, res) => {
+  try {
+    // 1. Find all bookings with status "accepted"
+    const bookings = await Booking.find({ status: 'accepted' }) // Only fetch bookings with status "accepted"
+      .populate('staff')  // Populate staff details
+      .populate('diagnostic')  // Populate diagnostic center details
+      .populate({
+        path: 'diagnostic.tests',  // Populate the embedded tests
+        select: 'test_name price offerPrice description image'
+      });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ message: 'No accepted bookings found' });
+    }
+
+    // 2. Format booking details
+    const bookingDetails = bookings.map((booking) => {
+      return {
+        bookingId: booking._id,
+        patient_name: booking.patient_name,
+        patient_age: booking.age,
+        patient_gender: booking.gender,
+        staff_name: booking.staff ? booking.staff.name : 'N/A',
+        diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+        diagnostic_image: booking.diagnostic?.image || '',
+        diagnostic_address: booking.diagnostic?.address || '',
+        consultation_fee: booking.consultation_fee || 0,
+        tests: booking.diagnostic?.tests?.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          description: test.description,
+          image: test.image
+        })) || [],
+        appointment_date: booking.appointment_date,
+        gender: booking.gender,
+        age: booking.age,
+        subtotal: booking.subtotal,
+        gst_on_tests: booking.gst_on_tests,
+        gst_on_consultation: booking.gst_on_consultation,
+        total: booking.total,
+        status: booking.status
+      };
+    });
+
+    // 3. Send response
+    res.status(200).json({
+      message: 'Accepted bookings fetched successfully',
+      bookings: bookingDetails
+    });
+  } catch (error) {
+    console.error('Error fetching accepted bookings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+
+// Controller to get all diagnostic bookings with status 'rejected'
+export const getRejectedDiagnosticBookings = async (req, res) => {
+  try {
+    // 1. Find all bookings with status "rejected"
+    const bookings = await Booking.find({ status: 'rejected' }) // Only fetch bookings with status "rejected"
+      .populate('staff')  // Populate staff details
+      .populate('diagnostic')  // Populate diagnostic center details
+      .populate({
+        path: 'diagnostic.tests',  // Populate the embedded tests
+        select: 'test_name price offerPrice description image'
+      });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ message: 'No rejected bookings found' });
+    }
+
+    // 2. Format booking details
+    const bookingDetails = bookings.map((booking) => {
+      return {
+        bookingId: booking._id,
+        patient_name: booking.patient_name,
+        patient_age: booking.age,
+        patient_gender: booking.gender,
+        staff_name: booking.staff ? booking.staff.name : 'N/A',
+        diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+        diagnostic_image: booking.diagnostic?.image || '',
+        diagnostic_address: booking.diagnostic?.address || '',
+        consultation_fee: booking.consultation_fee || 0,
+        tests: booking.diagnostic?.tests?.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          description: test.description,
+          image: test.image
+        })) || [],
+        appointment_date: booking.appointment_date,
+        gender: booking.gender,
+        age: booking.age,
+        subtotal: booking.subtotal,
+        gst_on_tests: booking.gst_on_tests,
+        gst_on_consultation: booking.gst_on_consultation,
+        total: booking.total,
+        status: booking.status
+      };
+    });
+
+    // 3. Send response
+    res.status(200).json({
+      message: 'Rejected bookings fetched successfully',
+      bookings: bookingDetails
+    });
+  } catch (error) {
+    console.error('Error fetching rejected bookings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const updateAppointmentStatus = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;  // Get appointmentId from URL params
+    const { newStatus } = req.body;        // Get the new status from the request body
+
+    // Validate newStatus
+    if (!newStatus) {
+      return res.status(400).json({ message: "newStatus is required in the request body" });
+    }
+
+    // Find the appointment by appointmentId and update its status
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      { $set: { status: newStatus } },
+      { new: true }  // Return the updated appointment
+    );
+
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    res.status(200).json({
+      message: `Appointment status updated to "${newStatus}"`,
+      updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Error updating appointment status:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+export const getAcceptedAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: "accepted" })
+      .populate({
+        path: 'doctor',
+        select: 'name specialization image'
+      })
+      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor');
+
+    res.status(200).json({
+      message: 'Accepted appointments fetched successfully',
+      appointments: appointments.map((appointment) => ({
+        appointmentId: appointment._id,
+        doctor_name: appointment.doctor?.name,
+        doctor_specialization: appointment.doctor?.specialization,
+        doctor_image: appointment.doctor?.image,
+        appointment_date: appointment.appointment_date,
+        status: appointment.status,
+        patient_name: appointment.patient_name,
+        patient_relation: appointment.patient_relation,
+        age: appointment.age,
+        gender: appointment.gender,
+        subtotal: appointment.subtotal,
+        total: appointment.total,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching accepted appointments:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const getRejectedAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: "rejected" })
+      .populate({
+        path: 'doctor',
+        select: 'name specialization image'
+      })
+      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor');
+
+    res.status(200).json({
+      message: 'Rejected appointments fetched successfully',
+      appointments: appointments.map((appointment) => ({
+        appointmentId: appointment._id,
+        doctor_name: appointment.doctor?.name,
+        doctor_specialization: appointment.doctor?.specialization,
+        doctor_image: appointment.doctor?.image,
+        appointment_date: appointment.appointment_date,
+        status: appointment.status,
+        patient_name: appointment.patient_name,
+        patient_relation: appointment.patient_relation,
+        age: appointment.age,
+        gender: appointment.gender,
+        subtotal: appointment.subtotal,
+        total: appointment.total,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching rejected appointments:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const getCounts = async (req, res) => {
+  try {
+    const bookingCount = await Booking.countDocuments();
+    const appointmentCount = await Appointment.countDocuments();
+
+    res.status(200).json({
+      message: 'Counts fetched successfully',
+      totalDiagnosticBookings: bookingCount,
+      totalDoctorAppointments: appointmentCount
+    });
+  } catch (error) {
+    console.error('Error fetching counts:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+export const getCompanyStaffStats = async (req, res) => {
+  const { companyId } = req.params;
+
+  try {
+    // Step 1: Find company with populated staff
+    const company = await Company.findById(companyId).populate('staff');
+
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // Step 2: Get staff array
+    const staffArray = company.staff || [];
+
+    // Step 3: Count total staff
+    const totalStaff = staffArray.length;
+
+    // Step 4: Calculate total wallet balance
+    const totalWalletBalance = staffArray.reduce((sum, staff) => {
+      return sum + (staff.wallet_balance || 0);
+    }, 0);
+
+    // Step 5: Send response
+    res.status(200).json({
+      message: 'Company staff stats fetched successfully',
+      totalStaff,
+      totalWalletBalance,
+    });
+  } catch (error) {
+    console.error('Error fetching company staff stats:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+
+
+
+
+
+
+
 
   
   

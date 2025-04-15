@@ -10,6 +10,7 @@ const companySchema = new mongoose.Schema(
     renewalDate: { type: Date },
     insuranceBroker: { type: String },
     email: { type: String },
+    password: { type: String },
     phone: { type: String },
     gstNumber: { type: String },
     companyStrength: { type: Number },

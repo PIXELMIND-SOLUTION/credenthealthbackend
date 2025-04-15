@@ -35,7 +35,10 @@ import { signupAdmin,
     getRejectedAppointments,
     getCounts,
     getCompanyById,
-    getCompanyStaffStats
+    getCompanyStaffStats,
+    loginDoctor,
+    logoutDoctor,
+    getDoctorAppointments
  } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
@@ -98,6 +101,8 @@ router.get('/alldiagnosticsbookings', getAllDiagnosticBookings);
 router.get('/allaccepteddiagnosticsbookings', getAcceptedDiagnosticBookings);
 router.get('/allrejecteddiagnosticsbookings', getRejectedDiagnosticBookings);
 router.get('/alldoctorbookings', getAllDoctorAppointments);
+router.get('/alldoctorappointments/:doctorId', getDoctorAppointments);
+
 
 
 router.post('/create-company', createCompany);
@@ -117,6 +122,11 @@ router.get('/getallcategory', getAllCategories);
 //login company
 router.post('/login-company', loginCompany);
 router.post('/logout-company', logoutCompany);
+
+
+//login doctor
+router.post('/login-doctor', loginDoctor);
+router.post('/logout-doctor', logoutDoctor);
 
 
 // Update status of an appointment by appointmentId

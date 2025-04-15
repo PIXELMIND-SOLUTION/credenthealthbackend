@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const doctorSchema = new mongoose.Schema({
   name: { type: String },
+  email: { type: String, },  // Adding email field (unique and required)
+  password: { type: String, },  // Adding password field (required)
   specialization: { type: String },
   qualification: { type: String }, // e.g., MBBS, MD
   description: { type: String },

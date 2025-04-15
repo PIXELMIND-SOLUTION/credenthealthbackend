@@ -660,7 +660,7 @@ export const createDoctor = async (req, res) => {
       }
 
       // After the image is uploaded, create the doctor with the form data
-      const { name, specialization, qualification, description, consultation_fee, address, category, schedule } = req.body;
+      const { name, email, password, specialization, qualification, description, consultation_fee, address, category, schedule } = req.body;
 
       // Parse the schedule (string) if it's sent as a stringified JSON array
       const parsedSchedule = schedule ? JSON.parse(schedule) : [];
@@ -671,6 +671,8 @@ export const createDoctor = async (req, res) => {
       // Create a new Doctor document
       const doctor = new Doctor({
         name,
+        email,
+        password,
         specialization,
         qualification,
         description,
@@ -883,6 +885,49 @@ export const getAllDoctorAppointments = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+
+export const getDoctorAppointments = async (req, res) => {
+  try {
+    const { doctorId } = req.params; // Extract doctorId from the request parameters
+
+    // Fetch appointments for the specific doctor
+    const appointments = await Appointment.find({ doctor: doctorId })
+      .populate({
+        path: 'doctor',
+        select: 'name specialization image',
+      })
+      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor');
+
+    // Check if no appointments found for the doctor
+    if (appointments.length === 0) {
+      return res.status(404).json({ message: 'No appointments found for this doctor' });
+    }
+
+    // Respond with the filtered appointment data
+    res.status(200).json({
+      message: `Appointments for Doctor ${appointments[0].doctor?.name} fetched successfully`,
+      appointments: appointments.map((appointment) => ({
+        appointmentId: appointment._id,
+        doctor_name: appointment.doctor?.name,
+        doctor_specialization: appointment.doctor?.specialization,
+        doctor_image: appointment.doctor?.image,
+        appointment_date: appointment.appointment_date,
+        status: appointment.status,
+        patient_name: appointment.patient_name,
+        patient_relation: appointment.patient_relation,
+        age: appointment.age,
+        gender: appointment.gender,
+        subtotal: appointment.subtotal,
+        total: appointment.total,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 
 
@@ -1461,9 +1506,73 @@ export const getCompanyStaffStats = async (req, res) => {
 };
 
 
+// Doctor Login
+export const loginDoctor = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check if doctor exists
+    const doctor = await Doctor.findOne({ email });
+    if (!doctor) {
+      return res.status(400).json({ message: 'Doctor does not exist' });
+    }
+
+    // Check if password matches directly (without bcrypt)
+    if (doctor.password !== password) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = generateToken(doctor._id);
+
+    // Return success message with doctor details and JWT token
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      doctor: {
+        id: doctor._id, // Add doctor ID here
+        name: doctor.name,
+        email: doctor.email,
+        specialty: doctor.specialty,
+        contactNumber: doctor.contactNumber,
+        address: doctor.address,
+        registrationDate: doctor.registrationDate,
+        licenseNumber: doctor.licenseNumber,
+        clinicName: doctor.clinicName,
+        clinicAddress: doctor.clinicAddress,
+        country: doctor.country,
+        state: doctor.state,
+        city: doctor.city,
+        pincode: doctor.pincode,
+        profilePicture: doctor.profilePicture, // Include profile picture if necessary
+        documents: doctor.documents, // Include documents if necessary
+      },
+    });
+  } catch (error) {
+    console.error('Error during doctor login:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
 
 
+// Doctor Logout Controller
+export const logoutDoctor = async (req, res) => {
+  try {
+    // Clear the JWT token cookie if it's stored in a cookie
+    res.clearCookie('doctor_token', {
+      httpOnly: true, // Prevents JavaScript access to the cookie
+      secure: process.env.NODE_ENV === 'production', // Secure flag for production (HTTPS)
+      sameSite: 'strict', // CSRF protection
+    });
 
+    // Send response indicating successful logout
+    res.status(200).json({
+      message: "Doctor logout successful. Token cleared from cookies.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Doctor logout failed", error });
+  }
+};
 
 
 

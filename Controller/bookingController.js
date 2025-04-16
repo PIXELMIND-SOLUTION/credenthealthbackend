@@ -3,112 +3,257 @@ import Doctor from '../Models/doctorModel.js';
 import Staff from '../Models/staffModel.js';
 import Diagnostic from '../Models/diagnosticModel.js';
 
-// Controller to handle booking an appointment without payment deduction
+// export const bookAppointment = async (req, res) => {
+//   try {
+//     const {
+//       patient_name,
+//       diagnosticId,
+//       tests,
+//       appointment_date,
+//       appointment_time,
+//       gender,
+//       age,
+//       staffId, // staffId could be a name in the frontend
+//       name, // If staff name is provided instead of staffId
+//     } = req.body;
+
+//     // 1. Find diagnostic center details
+//     const diagnostic = await Diagnostic.findById(diagnosticId);
+//     if (!diagnostic) {
+//       return res.status(400).json({ message: 'Diagnostic center not found' });
+//     }
+
+//     // 2. Find staff details (either by staffId or by name)
+//     let staff;
+
+//     if (staffId) {
+//       staff = await Staff.findById(staffId);  // Find staff by staffId (ObjectId)
+//     }
+
+//     // If staffId is not provided, find staff by name (if name is provided)
+//     if (!staff && name) {
+//       staff = await Staff.findOne({ name: name });  // Find staff by name
+//     }
+
+//     if (!staff) {
+//       return res.status(400).json({ message: 'Staff not found' });
+//     }
+
+//     // 3. Get diagnostic center's available tests
+//     const diagnosticTests = diagnostic.tests;
+
+//     // 4. Validate selected tests and calculate subtotal using offerPrice if available
+//     let subtotal = 0;
+//     const testDetails = [];
+
+//     for (let testId of tests) {
+//       const selectedTest = diagnosticTests.find(test => test._id.toString() === testId);
+//       if (!selectedTest) {
+//         return res.status(400).json({ message: `Test with id ${testId} is not valid for this diagnostic center` });
+//       }
+
+//       testDetails.push(selectedTest);
+
+//       // Use offerPrice if available, else fallback to price
+//       const testPrice = selectedTest.offerPrice || selectedTest.price;
+//       subtotal += testPrice;
+//     }
+
+//     // Assuming consultation fee is part of diagnostic center's service (if applicable)
+//     const consultationFee = diagnostic.consultation_fee || 0;  // Default to 0 if no consultation fee
+
+//     // 5. GST calculation (18%)
+//     const gstOnTests = (subtotal * 18) / 100;
+//     const gstOnConsultation = (consultationFee * 18) / 100;
+
+//     // 6. Total amount
+//     const totalForTests = subtotal + gstOnTests;
+//     const total = totalForTests + consultationFee + gstOnConsultation;
+
+//     // 7. Create the booking and save it
+//     const newBooking = new Booking({
+//       patient_name,
+//       diagnostic: diagnostic._id,
+//       tests: testDetails.map(test => test._id),
+//       subtotal,
+//       consultation_fee: consultationFee,
+//       gst_on_tests: gstOnTests,
+//       gst_on_consultation: gstOnConsultation,
+//       total,
+//       appointment_date,
+//       staff: staff._id,  // Save staff reference (staffId)
+//       gender,  // Save gender
+//       age      // Save age
+//     });
+
+//     await newBooking.save();
+
+//     // 8. Add booking to staff's record
+//     staff.myBookings.push(newBooking._id);
+//     await staff.save();
+
+//     // 9. Respond with booking details and bookingId for payment
+//     res.status(201).json({
+//       message: 'Appointment booked successfully',
+//       bookingId: newBooking._id,  // Provide the booking ID in the response
+//       total, // Send the total amount to be paid
+//       booking: {
+//         patient_name,
+//         staff_name: staff.name, // Include staff name
+//         diagnostic_name: diagnostic.name,
+//         diagnostic_image: diagnostic.image,
+//         diagnostic_address: diagnostic.address,
+//         consultation_fee: consultationFee,
+//         tests: testDetails.map(test => ({
+//           testId: test._id, // ✅ Added testId
+//           test_name: test.test_name,
+//           description: test.description,
+//           price: test.price,
+//           offerPrice: test.offerPrice || test.price,
+//           image: test.image // Include test image as well
+//         })),
+//         appointment_date,
+//         gender, // Include gender in the response
+//         age,    // Include age in the response
+//         subtotal,
+//         gst_on_tests: gstOnTests,
+//         gst_on_consultation: gstOnConsultation,
+//         total,
+//         status: newBooking.status
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error during appointment booking:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
 export const bookAppointment = async (req, res) => {
-    try {
-      const { patient_name, diagnosticId, tests, appointment_date, gender, age } = req.body;
-      const { staffId } = req.params; // Get staffId from URL params
-    
-      // 1. Find diagnostic center details
-      const diagnostic = await Diagnostic.findById(diagnosticId);
-      if (!diagnostic) {
-        return res.status(400).json({ message: 'Diagnostic center not found' });
+  try {
+    const {
+      patient_name,
+      diagnosticId,
+      tests,
+      appointment_date,
+      appointment_time,
+      gender,
+      age,
+      staffId, // staffId could be a name in the frontend
+      name, // If staff name is provided instead of staffId
+    } = req.body;
+
+    // 1. Find diagnostic center details
+    const diagnostic = await Diagnostic.findById(diagnosticId);
+    if (!diagnostic) {
+      return res.status(400).json({ message: 'Diagnostic center not found' });
+    }
+
+    // 2. Find staff details (either by staffId or by name)
+    let staff;
+
+    if (staffId) {
+      staff = await Staff.findById(staffId);  // Find staff by staffId (ObjectId)
+    }
+
+    // If staffId is not provided, find staff by name (if name is provided)
+    if (!staff && name) {
+      staff = await Staff.findOne({ name: name });  // Find staff by name
+    }
+
+    if (!staff) {
+      return res.status(400).json({ message: 'Staff not found' });
+    }
+
+    // 3. Get diagnostic center's available tests
+    const diagnosticTests = diagnostic.tests;
+
+    // 4. Validate selected tests and calculate subtotal using offerPrice if available
+    let subtotal = 0;
+    const testDetails = [];
+
+    for (let testId of tests) {
+      const selectedTest = diagnosticTests.find(test => test._id.toString() === testId);
+      if (!selectedTest) {
+        return res.status(400).json({ message: `Test with id ${testId} is not valid for this diagnostic center` });
       }
-    
-      // 2. Find staff details using staffId
-      const staff = await Staff.findById(staffId);
-      if (!staff) {
-        return res.status(400).json({ message: 'Staff not found' });
-      }
-    
-      // 3. Get diagnostic center's available tests
-      const diagnosticTests = diagnostic.tests;
-    
-      // 4. Validate selected tests and calculate subtotal using offerPrice if available
-      let subtotal = 0;
-      const testDetails = [];
-    
-      for (let testId of tests) {
-        const selectedTest = diagnosticTests.find(test => test._id.toString() === testId);
-        if (!selectedTest) {
-          return res.status(400).json({ message: `Test with id ${testId} is not valid for this diagnostic center` });
-        }
-    
-        testDetails.push(selectedTest);
-    
-        // Use offerPrice if available, else fallback to price
-        const testPrice = selectedTest.offerPrice || selectedTest.price;
-        subtotal += testPrice;
-      }
-    
-      // Assuming consultation fee is part of diagnostic center's service (if applicable)
-      const consultationFee = diagnostic.consultation_fee || 0;  // Default to 0 if no consultation fee
-    
-      // 5. GST calculation (18%)
-      const gstOnTests = (subtotal * 18) / 100;
-      const gstOnConsultation = (consultationFee * 18) / 100;
-    
-      // 6. Total amount
-      const totalForTests = subtotal + gstOnTests;
-      const total = totalForTests + consultationFee + gstOnConsultation;
-    
-      // 7. Create the booking and save it
-      const newBooking = new Booking({
+
+      testDetails.push(selectedTest);
+
+      // Use offerPrice if available, else fallback to price
+      const testPrice = selectedTest.offerPrice || selectedTest.price;
+      subtotal += testPrice;
+    }
+
+    // Assuming consultation fee is part of diagnostic center's service (if applicable)
+    const consultationFee = diagnostic.consultation_fee || 0;  // Default to 0 if no consultation fee
+
+    // 5. GST calculation (18%)
+    const gstOnTests = (subtotal * 18) / 100;
+    const gstOnConsultation = (consultationFee * 18) / 100;
+
+    // 6. Total amount
+    const totalForTests = subtotal + gstOnTests;
+    const total = totalForTests + consultationFee + gstOnConsultation;
+
+    // 7. Create the booking and save it
+    const newBooking = new Booking({
+      patient_name,
+      diagnostic: diagnostic._id,
+      tests: testDetails.map(test => test._id),
+      subtotal,
+      consultation_fee: consultationFee,
+      gst_on_tests: gstOnTests,
+      gst_on_consultation: gstOnConsultation,
+      total,
+      appointment_date,
+      staff: staff._id,  // Save staff reference (staffId)
+      gender,  // Save gender
+      age      // Save age
+    });
+
+    await newBooking.save();
+
+    // 8. Add booking to staff's record
+    staff.myBookings.push(newBooking._id);
+    await staff.save();
+
+    // 9. Respond with booking details and bookingId for payment
+    res.status(201).json({
+      message: 'Appointment booked successfully',
+      bookingId: newBooking._id,  // Provide the booking ID in the response
+      total, // Send the total amount to be paid
+      booking: {
         patient_name,
-        diagnostic: diagnostic._id,
-        tests: testDetails.map(test => test._id),
-        subtotal,
+        staff_name: staff.name, // Include staff name
+        diagnostic_name: diagnostic.name,
+        diagnostic_image: diagnostic.image,
+        diagnostic_address: diagnostic.address,
         consultation_fee: consultationFee,
+        tests: testDetails.map(test => ({
+          testId: test._id, // ✅ Added testId
+          test_name: test.test_name,
+          description: test.description,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          image: test.image // Include test image as well
+        })),
+        appointment_date,
+        appointment_time,
+        gender, // Include gender in the response
+        age,    // Include age in the response
+        subtotal,
         gst_on_tests: gstOnTests,
         gst_on_consultation: gstOnConsultation,
         total,
-        appointment_date,
-        staff: staff._id,
-        gender,  // Save gender
-        age      // Save age
-      });
-    
-      await newBooking.save();
-    
-      // 8. Add booking to staff's record
-      staff.myBookings.push(newBooking._id);
-      await staff.save();
-    
-      // 9. Respond with booking details and bookingId for payment
-      res.status(201).json({
-        message: 'Appointment booked successfully',
-        bookingId: newBooking._id,  // Provide the booking ID in the response
-        total, // Send the total amount to be paid
-        booking: {
-          patient_name,
-          staff_name: staff.name,
-          diagnostic_name: diagnostic.name,
-          diagnostic_image: diagnostic.image,
-          diagnostic_address: diagnostic.address,
-          consultation_fee: consultationFee,
-          tests: testDetails.map(test => ({
-            testId: test._id, // ✅ Added testId
-            test_name: test.test_name,
-            description: test.description,
-            price: test.price,
-            offerPrice: test.offerPrice || test.price,
-            image: test.image // Include test image as well
-          })),
-          appointment_date,
-          gender, // Include gender in the response
-          age,    // Include age in the response
-          subtotal,
-          gst_on_tests: gstOnTests,
-          gst_on_consultation: gstOnConsultation,
-          total,
-          status: newBooking.status
-        }
-      });
-    } catch (error) {
-      console.error('Error during appointment booking:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
-  };
+        status: newBooking.status
+      }
+    });
+  } catch (error) {
+    console.error('Error during appointment booking:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 
  // Controller to handle payment for the booking and deduct from staff wallet

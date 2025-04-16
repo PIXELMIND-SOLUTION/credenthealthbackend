@@ -931,8 +931,9 @@ export const getDoctorAppointments = async (req, res) => {
 
 
 
+
 export const createCompany = (req, res) => {
-  // Call multer middleware manually
+  // Call multer middleware manually to handle file uploads
   uploadCompanyAssets(req, res, async (err) => {
     if (err) {
       console.error('File upload error:', err);
@@ -957,18 +958,26 @@ export const createCompany = (req, res) => {
         city,
         pincode,
         contactPerson,
-        password // Added password field
-
+        password, // Password field
+        diagnostic, // This will be an array of diagnostic _ids sent from the frontend
       } = req.body;
 
-      // 🔍 Parse contactPerson JSON string if sent as stringified JSON
-      const parsedContactPerson = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
+      // 🔍 Parse diagnostic array from frontend if sent as stringified JSON
+      const diagnosticIds = typeof diagnostic === 'string' ? JSON.parse(diagnostic) : diagnostic;
+
+      // Check if all diagnostic _ids are valid
+      const validDiagnostics = await Diagnostic.find({
+        '_id': { $in: diagnosticIds },
+      }).select('_id');
 
       // 📂 Handle uploaded files
       const imageFile = req.files?.image?.[0]?.path || '';
       const documents = req.files?.documents?.map(doc => doc.path) || [];
 
-      // 🧾 Create and save company
+      // 🔄 Parse the contactPerson if sent as stringified JSON
+      const parsedContactPerson = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
+
+      // 🧾 Create and save the company document
       const newCompany = new Company({
         name,
         companyType,
@@ -981,11 +990,14 @@ export const createCompany = (req, res) => {
         phone,
         gstNumber,
         companyStrength,
-        image: imageFile,
         country,
         state,
         city,
         pincode,
+        password,  // Store password directly
+        diagnostics: validDiagnostics.map(d => d._id),  // Store the array of diagnostic _ids
+        image: imageFile, // Store the uploaded image path
+        documents,  // Store the uploaded document paths
         contactPerson: {
           name: parsedContactPerson?.name,
           designation: parsedContactPerson?.designation,
@@ -997,19 +1009,18 @@ export const createCompany = (req, res) => {
             state: parsedContactPerson?.address?.state,
             city: parsedContactPerson?.address?.city,
             pincode: parsedContactPerson?.address?.pincode,
-            street: parsedContactPerson?.address?.street
-          }
+            street: parsedContactPerson?.address?.street || 'Not Provided',  // Default if not provided
+          },
         },
-        documents,
-        password // Added password field
-
       });
 
+      // Save the new company to DB
       const savedCompany = await newCompany.save();
 
+      // Respond with success message
       res.status(201).json({
-        message: 'Company created successfully',
-        company: savedCompany
+        message: 'Company created successfully!',
+        company: savedCompany,
       });
     } catch (error) {
       console.error('Error creating company:', error);
@@ -1017,6 +1028,7 @@ export const createCompany = (req, res) => {
     }
   });
 };
+
 
 
 export const getCompanies = async (req, res) => {
@@ -1052,6 +1064,35 @@ export const getCompanyById = async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 };
+
+
+
+export const getCompanyDiagnostics = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    // 1. Find company by ID and only get diagnostics field
+    const company = await Company.findById(companyId).select('diagnostics');
+
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // 2. Populate diagnostic details from Diagnostic model
+    const diagnosticDetails = await Diagnostic.find({
+      _id: { $in: company.diagnostics },
+    });
+
+    res.status(200).json({
+      message: 'Diagnostics fetched successfully',
+      diagnostics: diagnosticDetails,
+    });
+  } catch (error) {
+    console.error('Error fetching diagnostics:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
 
 
 

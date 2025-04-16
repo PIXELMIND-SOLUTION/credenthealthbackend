@@ -52,6 +52,12 @@ const companySchema = new mongoose.Schema(
       idImage: { type: String },
       wallet_balance: { type: Number, default: 0 },
     }],
+    diagnostics: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Diagnostic',  // Reference to the Diagnostic model
+      },
+    ],
     // Uploaded documents
     documents: [{ type: String }],
   },

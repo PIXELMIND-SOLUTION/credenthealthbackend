@@ -27,7 +27,7 @@ const router = express.Router();
 // Route for staff login
 router.post('/login-staff', staffLogin);
 router.get('/wallet/:staffId', getWalletBalance);
-router.post('/bookappoint/:staffId/:doctorId', bookAppointment);
+router.post('/bookappoint', bookAppointment);
 router.post('/process-payment/:staffId/:appointmentId', processPayment);
 
 // Routes for family members

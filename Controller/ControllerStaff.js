@@ -104,19 +104,30 @@ export const staffLogin = async (req, res) => {
 
   export const bookAppointment = async (req, res) => {
     try {
-      const { staffId, doctorId } = req.params;  // Get staffId and doctorId from URL params
-      const { appointment_date, appointment_time, patient_name, patient_relation } = req.body;  // Get the appointment date, time, and patient details
+      const { doctorId, staffId, name, appointment_date, appointment_time, patient_name, patient_relation } = req.body;
   
-      // 1. Find staff by staffId
-      const staff = await Staff.findById(staffId);
-      if (!staff) {
-        return res.status(400).json({ message: 'Staff member not found' });
-      }
+      console.log('Received Appointment Data:', req.body);  // Log the received data
   
-      // 2. Find doctor by doctorId
+      // 1. Find doctor by doctorId
       const doctor = await Doctor.findById(doctorId);
       if (!doctor) {
         return res.status(400).json({ message: 'Doctor not found' });
+      }
+  
+      // 2. Find staff by staffId or name
+      let staff;
+      if (staffId) {
+        // If staffId is provided, find staff by staffId
+        staff = await Staff.findById(staffId);
+      }
+  
+      // If no staff found by staffId, try finding staff by name
+      if (!staff && name) {
+        staff = await Staff.findOne({ name: name });
+      }
+  
+      if (!staff) {
+        return res.status(400).json({ message: 'Staff not found' });
       }
   
       // 3. Check if the doctor is available on the given date (you can extend this check with available hours or days logic)
@@ -176,7 +187,7 @@ export const staffLogin = async (req, res) => {
       });
       await doctor.save();
   
-      // 7. Respond with the appointment details including appointmentId, subtotal and total
+      // 7. Respond with the appointment details including appointmentId, subtotal, and total
       res.status(201).json({
         message: 'Appointment booked successfully',
         appointment: {
@@ -196,6 +207,7 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
 
   

@@ -38,7 +38,8 @@ import { signupAdmin,
     getCompanyStaffStats,
     loginDoctor,
     logoutDoctor,
-    getDoctorAppointments
+    getDoctorAppointments,
+    getCompanyDiagnostics
  } from '../Controller/ControllerAdmin.js';
 
 const router = express.Router();
@@ -108,6 +109,7 @@ router.get('/alldoctorappointments/:doctorId', getDoctorAppointments);
 router.post('/create-company', createCompany);
 router.get('/companies', getCompanies);
 router.get('/singlecompany/:companyId', getCompanyById);
+router.get('/companydiag/:companyId', getCompanyDiagnostics);
 router.get('/companystaffs/:companyId', getCompanyWithStaff);
 router.get('/staffscount/:companyId', getCompanyStaffStats);
 

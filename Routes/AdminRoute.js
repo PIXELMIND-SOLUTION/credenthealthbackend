@@ -39,8 +39,23 @@ import { signupAdmin,
     loginDoctor,
     logoutDoctor,
     getDoctorAppointments,
-    getCompanyDiagnostics
+    getCompanyDiagnostics,
+    loginDiagnostic,
+    logoutDiagnostic,
+    getBookingsByDiagnosticId,
+    importCompaniesFromExcel,
+    importStaffFromExcel,
+    updateCompany,
+    deleteCompany,
+    editStaffProfile,
+    deleteStaffProfile,
+    deleteDiagnosticCenter,
+    deleteBookingById,
+    getDashboardCounts
  } from '../Controller/ControllerAdmin.js';
+ import multer from 'multer';
+ const upload = multer({ dest: 'uploads/' });
+
 
 const router = express.Router();
 
@@ -69,9 +84,16 @@ router.post('/create-staff/:companyId', createStaffProfile);
 router.post('/addamount/:staffId/:companyId', addAmountToWallet);
 
 
+router.put("/editstaff/:staffId", editStaffProfile);
+router.delete("/deletestaff/:staffId", deleteStaffProfile);
+
+
+
 
 // Route to create a new diagnostic center along with tests
 router.post('/create-diagnostic', createDiagnosticDetails);
+// Inside your route file, e.g. routes/admin.js
+router.delete("/delelte-diagnostic/:diagnosticId", deleteDiagnosticCenter);
 router.get('/alldiagnostics', getAllDiagnostics);
 router.get('/get-single/:diagnosticId', getDiagnosticById);
 router.get('/alltest/:diagnosticId', getAllTests);
@@ -99,6 +121,8 @@ router.put('/update-doctor/:id', updateDoctor);
 // Delete
 router.delete('/remvoe-doctors/:id', deleteDoctor);
 router.get('/alldiagnosticsbookings', getAllDiagnosticBookings);
+router.get('/get-bookings/:diagnosticId', getBookingsByDiagnosticId);
+router.delete('/delete-bookings/:bookingId', deleteBookingById);
 router.get('/allaccepteddiagnosticsbookings', getAcceptedDiagnosticBookings);
 router.get('/allrejecteddiagnosticsbookings', getRejectedDiagnosticBookings);
 router.get('/alldoctorbookings', getAllDoctorAppointments);
@@ -109,6 +133,8 @@ router.get('/alldoctorappointments/:doctorId', getDoctorAppointments);
 router.post('/create-company', createCompany);
 router.get('/companies', getCompanies);
 router.get('/singlecompany/:companyId', getCompanyById);
+router.put('/update-company/:companyId', updateCompany);
+router.delete('/delete-company/:companyId', deleteCompany);
 router.get('/companydiag/:companyId', getCompanyDiagnostics);
 router.get('/companystaffs/:companyId', getCompanyWithStaff);
 router.get('/staffscount/:companyId', getCompanyStaffStats);
@@ -131,6 +157,12 @@ router.post('/login-doctor', loginDoctor);
 router.post('/logout-doctor', logoutDoctor);
 
 
+//login & logout diagnostic
+//login doctor
+router.post('/login-diagnostic', loginDiagnostic);
+router.post('/logout-diagnostic', logoutDiagnostic);
+
+
 // Update status of an appointment by appointmentId
 router.put('/updatestatus/:appointmentId', updateAppointmentStatus);
 
@@ -140,6 +172,11 @@ router.get('/acceptedappointments', getAcceptedAppointments);
 // Get all rejected appointments
 router.get('/rejectedappointments', getRejectedAppointments);
 router.get('/getcount', getCounts);
+
+router.post('/import-companies', upload.single('file'), importCompaniesFromExcel);
+router.post('/import-staffs', upload.single('file'), importStaffFromExcel);
+
+router.get('/getdashboardcount', getDashboardCounts);
 
 
 

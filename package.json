@@ -29,7 +29,8 @@
     "pdfkit": "^0.15.2",
     "puppeteer": "^23.11.1",
     "puppeteer-core": "^23.11.1",
-    "stream-to-buffer": "^0.1.0"
+    "stream-to-buffer": "^0.1.0",
+    "xlsx": "^0.18.5"
   },
   "type": "module"
 }

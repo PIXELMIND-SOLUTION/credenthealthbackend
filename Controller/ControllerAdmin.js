@@ -9,6 +9,9 @@ import Appointment from '../Models/Appointment.js';
 import Company from '../Models/companyModel.js';
 import mongoose from 'mongoose';
 import Category from '../Models/Category.js';
+import XLSX from 'xlsx';
+import fs from 'fs';
+
 
 // Admin Signup
 export const signupAdmin = async (req, res) => {
@@ -354,6 +357,98 @@ export const createStaffProfile = async (req, res) => {
   }
 };
 
+
+
+export const editStaffProfile = async (req, res) => {
+  const { staffId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(staffId)) {
+    return res.status(400).json({ message: "Invalid staff ID format" });
+  }
+
+  try {
+    const updatedFields = req.body; // Yeh saare fields dynamically handle karega
+
+    // 1. Update the staff document directly
+    await Staff.findByIdAndUpdate(staffId, updatedFields, {
+      new: true,
+      runValidators: true,
+    });
+
+    // 2. Re-fetch the updated staff
+    const updatedStaff = await Staff.findById(staffId);
+
+    if (!updatedStaff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    // 3. Dynamically build the $set object for Company.staff[]
+    const companyUpdateFields = {};
+    const allowedFields = ["name", "role", "contact_number", "email", "dob", "gender", "age", "address"];
+
+    allowedFields.forEach((field) => {
+      if (updatedFields[field] !== undefined) {
+        const key = `staff.$.${field === "contact_number" ? "contact" : field}`;
+        companyUpdateFields[key] = updatedFields[field];
+      }
+    });
+
+    // 4. Update embedded staff inside company if any field matches
+    if (Object.keys(companyUpdateFields).length > 0) {
+      await Company.updateOne(
+        { "staff._id": staffId },
+        { $set: companyUpdateFields }
+      );
+    }
+
+    res.status(200).json({
+      message: "Staff profile updated successfully",
+      updatedStaff,
+    });
+
+  } catch (error) {
+    console.error("❌ Error updating staff:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+
+// 🗑️ Admin deleting a staff profile
+export const deleteStaffProfile = async (req, res) => {
+  const { staffId } = req.params;
+
+  // 🔒 Validate ObjectId
+  if (!mongoose.Types.ObjectId.isValid(staffId)) {
+    return res.status(400).json({ message: "Invalid staff ID format" });
+  }
+
+  try {
+    // 1. Delete staff from Staff collection
+    const deletedStaff = await Staff.findByIdAndDelete(staffId);
+
+    if (!deletedStaff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    // 2. Remove staff from any company that has this staff linked
+    await Company.updateMany(
+      { "staff._id": staffId },
+      { $pull: { staff: { _id: staffId } } }
+    );
+
+    res.status(200).json({
+      message: "Staff deleted successfully",
+      deletedStaff,
+    });
+  } catch (error) {
+    console.error("❌ Error deleting staff:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
 //book a diagnostics
 
 
@@ -465,6 +560,141 @@ export const createDiagnosticDetails = async (req, res) => {
 };
 
 
+
+export const updateDiagnosticDetails = async (req, res) => {
+  try {
+    const { diagnosticId } = req.params;
+
+    // ✅ Validate diagnosticId
+    if (!mongoose.Types.ObjectId.isValid(diagnosticId)) {
+      return res.status(400).json({ message: "Invalid Diagnostic Center ID" });
+    }
+
+    // 🧪 Upload images if sent
+    uploadTestImages(req, res, async (uploadErr) => {
+      if (uploadErr) {
+        console.error("❌ Image upload failed:", uploadErr);
+        return res.status(400).json({ message: "Image upload failed", error: uploadErr.message });
+      }
+
+      try {
+        const diagnostic = await Diagnostic.findById(diagnosticId);
+        if (!diagnostic) {
+          return res.status(404).json({ message: "Diagnostic center not found" });
+        }
+
+        console.log("📥 req.body:", req.body);
+        console.log("📁 req.files:", req.files);
+
+        const updateData = { ...req.body };
+
+        // Parse contactPersons and tests from flat fields
+        const contactPersons = [];
+        const tests = [];
+
+        Object.keys(req.body).forEach((key) => {
+          if (key.startsWith("contactPersons")) {
+            const index = key.match(/\d+/)[0];
+            const field = key.split(".")[1];
+            if (!contactPersons[index]) contactPersons[index] = {};
+            contactPersons[index][field] = req.body[key];
+          }
+
+          if (key.startsWith("tests")) {
+            const index = key.match(/\d+/)[0];
+            const field = key.split(".")[1];
+            if (!tests[index]) tests[index] = {};
+            tests[index][field] = req.body[key];
+          }
+        });
+
+        if (contactPersons.length) updateData.contactPersons = contactPersons;
+        if (tests.length) updateData.tests = tests;
+
+        // 🔄 Handle new image uploads if any
+        if (req.files && req.files.length > 0) {
+          const imagePaths = req.files.map((file) => file.path);
+          updateData.testImages = imagePaths;
+
+          // Optionally delete old testImages from disk
+          if (diagnostic.testImages && diagnostic.testImages.length > 0) {
+            diagnostic.testImages.forEach((imgPath) => {
+              const fullPath = path.resolve(imgPath);
+              fs.unlink(fullPath, (err) => {
+                if (err) console.warn("⚠️ Failed to delete old image:", fullPath);
+              });
+            });
+          }
+        }
+
+        // 🔃 Update diagnostic with new data
+        const updatedDiagnostic = await Diagnostic.findByIdAndUpdate(
+          diagnosticId,
+          { $set: updateData },
+          { new: true }
+        );
+
+        res.status(200).json({
+          message: "Diagnostic center updated successfully",
+          diagnostic: updatedDiagnostic,
+        });
+      } catch (err) {
+        console.error("💥 Error during update:", err);
+        res.status(500).json({ message: "Server error", error: err.message });
+      }
+    });
+  } catch (error) {
+    console.error("🔥 Unexpected error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+export const deleteDiagnosticCenter = async (req, res) => {
+  const { diagnosticId } = req.params;
+
+  // ✅ Validate diagnosticId
+  if (!mongoose.Types.ObjectId.isValid(diagnosticId)) {
+    return res.status(400).json({ message: "Invalid Diagnostic Center ID" });
+  }
+
+  try {
+    // 🔍 Step 1: Find diagnostic center
+    const diagnostic = await Diagnostic.findById(diagnosticId);
+
+    if (!diagnostic) {
+      return res.status(404).json({ message: "Diagnostic Center not found" });
+    }
+
+    // 🧹 Step 2: Delete associated test images from disk (if any)
+    if (diagnostic.testImages && diagnostic.testImages.length > 0) {
+      diagnostic.testImages.forEach((imgPath) => {
+        const fullPath = path.resolve(imgPath);
+        fs.unlink(fullPath, (err) => {
+          if (err) {
+            console.warn("⚠️ Could not delete file:", fullPath);
+          } else {
+            console.log("🗑️ Deleted test image:", fullPath);
+          }
+        });
+      });
+    }
+
+    // 🗑️ Step 3: Delete the diagnostic document
+    await Diagnostic.findByIdAndDelete(diagnosticId);
+
+    res.status(200).json({
+      message: "Diagnostic Center deleted successfully",
+      deletedId: diagnosticId,
+    });
+  } catch (error) {
+    console.error("❌ Error deleting diagnostic center:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
 // Get all Diagnostic Centers
 export const getAllDiagnostics = async (req, res) => {
     try {
@@ -532,47 +762,47 @@ export const getAllTests = async (req, res) => {
 
 
 
-// Update Diagnostic Center and its Tests
-export const updateDiagnosticDetails = async (req, res) => {
-    try {
-        const { diagnosticId } = req.params;  // Get diagnosticId from the URL
-        const { name, image, address, tests } = req.body;
+// // Update Diagnostic Center and its Tests
+// export const updateDiagnosticDetails = async (req, res) => {
+//     try {
+//         const { diagnosticId } = req.params;  // Get diagnosticId from the URL
+//         const { name, image, address, tests } = req.body;
 
-        // Find the diagnostic center by its ID
-        const diagnostic = await Diagnostic.findById(diagnosticId);
-        if (!diagnostic) {
-            return res.status(404).json({ message: 'Diagnostic center not found' });
-        }
+//         // Find the diagnostic center by its ID
+//         const diagnostic = await Diagnostic.findById(diagnosticId);
+//         if (!diagnostic) {
+//             return res.status(404).json({ message: 'Diagnostic center not found' });
+//         }
 
-        // Validate tests to ensure each test has all necessary fields
-        const validatedTests = tests.map(test => {
-            if (!test.test_name || !test.description || !test.price) {
-                throw new Error('Each test must have a name, description, and price');
-            }
-            // Ensure offerPrice is always provided or defaults to price
-            test.offerPrice = test.offerPrice || test.price;
-            return test;
-        });
+//         // Validate tests to ensure each test has all necessary fields
+//         const validatedTests = tests.map(test => {
+//             if (!test.test_name || !test.description || !test.price) {
+//                 throw new Error('Each test must have a name, description, and price');
+//             }
+//             // Ensure offerPrice is always provided or defaults to price
+//             test.offerPrice = test.offerPrice || test.price;
+//             return test;
+//         });
 
-        // Update the diagnostic center fields
-        diagnostic.name = name || diagnostic.name;
-        diagnostic.image = image || diagnostic.image;
-        diagnostic.address = address || diagnostic.address;
-        diagnostic.tests = validatedTests || diagnostic.tests;
+//         // Update the diagnostic center fields
+//         diagnostic.name = name || diagnostic.name;
+//         diagnostic.image = image || diagnostic.image;
+//         diagnostic.address = address || diagnostic.address;
+//         diagnostic.tests = validatedTests || diagnostic.tests;
 
-        // Save the updated diagnostic center to the database
-        await diagnostic.save();
+//         // Save the updated diagnostic center to the database
+//         await diagnostic.save();
 
-        // Send the response back with updated diagnostic center details
-        res.status(200).json({
-            message: 'Diagnostic center updated successfully',
-            diagnostic
-        });
-    } catch (error) {
-        console.error('Error updating diagnostic details:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-};
+//         // Send the response back with updated diagnostic center details
+//         res.status(200).json({
+//             message: 'Diagnostic center updated successfully',
+//             diagnostic
+//         });
+//     } catch (error) {
+//         console.error('Error updating diagnostic details:', error);
+//         res.status(500).json({ message: 'Server error', error: error.message });
+//     }
+// };
 
 
 // Delete a Diagnostic Center
@@ -853,6 +1083,102 @@ export const getAllDiagnosticBookings = async (req, res) => {
 };
 
 
+// Controller to get bookings for a specific diagnostic center
+export const getBookingsByDiagnosticId = async (req, res) => {
+  try {
+    const { diagnosticId } = req.params;
+
+    if (!diagnosticId) {
+      return res.status(400).json({ message: 'Diagnostic ID is required' });
+    }
+
+    const { status } = req.body; // Optional status filter
+
+    // 1. Find bookings for the specific diagnostic center
+    const bookings = await Booking.find({ diagnostic: diagnosticId })
+      .populate('staff')
+      .populate('diagnostic')
+      .populate({
+        path: 'diagnostic.tests',
+        select: 'test_name price offerPrice description image'
+      });
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ message: 'No bookings found for this diagnostic center' });
+    }
+
+    // 2. Apply status filter if provided
+    const filteredBookings = status
+      ? bookings.filter((booking) => booking.status === status)
+      : bookings;
+
+    // 3. Format data
+    const bookingDetails = filteredBookings.map((booking) => ({
+      bookingId: booking._id,
+      patient_name: booking.patient_name,
+      patient_age: booking.age,
+      patient_gender: booking.gender,
+      staff_name: booking.staff ? booking.staff.name : 'N/A',
+      diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+      diagnostic_image: booking.diagnostic?.image || '',
+      diagnostic_address: booking.diagnostic?.address || '',
+      consultation_fee: booking.consultation_fee || 0,
+      tests: booking.diagnostic?.tests?.map(test => ({
+        test_name: test.test_name,
+        price: test.price,
+        offerPrice: test.offerPrice || test.price,
+        description: test.description,
+        image: test.image
+      })) || [],
+      appointment_date: booking.appointment_date,
+      gender: booking.gender,
+      age: booking.age,
+      subtotal: booking.subtotal,
+      gst_on_tests: booking.gst_on_tests,
+      gst_on_consultation: booking.gst_on_consultation,
+      total: booking.total,
+      status: booking.status
+    }));
+
+    res.status(200).json({
+      message: 'Bookings fetched successfully',
+      bookings: bookingDetails
+    });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+// Controller to delete a specific booking
+export const deleteBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!bookingId) {
+      return res.status(400).json({ message: 'Booking ID is required' });
+    }
+
+    const deletedBooking = await Booking.findByIdAndDelete(bookingId);
+
+    if (!deletedBooking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.status(200).json({
+      message: 'Booking deleted successfully',
+      deletedBookingId: deletedBooking._id,
+    });
+  } catch (error) {
+    console.error('❌ Error deleting booking:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+
 export const getAllDoctorAppointments = async (req, res) => {
   try {
     // Fetch all appointments from the Appointment model
@@ -1031,6 +1357,118 @@ export const createCompany = (req, res) => {
 
 
 
+export const updateCompany = (req, res) => {
+  // Get companyId from URL params
+  const { companyId } = req.params;
+
+  // Call multer middleware manually to handle file uploads
+  uploadCompanyAssets(req, res, async (err) => {
+    if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({ message: 'File upload failed', error: err.message });
+    }
+
+    try {
+      const {
+        name,
+        companyType,
+        assignedBy,
+        registrationDate,
+        contractPeriod,
+        renewalDate,
+        insuranceBroker,
+        email,
+        phone,
+        gstNumber,
+        companyStrength,
+        country,
+        state,
+        city,
+        pincode,
+        contactPerson,
+        password,
+        diagnostic,  // Array of diagnostic _ids
+      } = req.body;
+
+      // 🔍 Parse diagnostic array from frontend if sent as stringified JSON
+      const diagnosticIds = typeof diagnostic === 'string' ? JSON.parse(diagnostic) : diagnostic;
+
+      // Check if all diagnostic _ids are valid
+      const validDiagnostics = diagnosticIds
+        ? await Diagnostic.find({ '_id': { $in: diagnosticIds } }).select('_id')
+        : [];
+
+      // 📂 Handle uploaded files (image and documents)
+      const imageFile = req.files?.image?.[0]?.path || '';
+      const documents = req.files?.documents?.map(doc => doc.path) || [];
+
+      // 🔄 Parse the contactPerson if sent as stringified JSON
+      const parsedContactPerson = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
+
+      // Prepare the updated company data
+      const updateData = {};
+
+      // Only include the fields that are provided in the request
+      if (name) updateData.name = name;
+      if (companyType) updateData.companyType = companyType;
+      if (assignedBy) updateData.assignedBy = assignedBy;
+      if (registrationDate) updateData.registrationDate = registrationDate;
+      if (contractPeriod) updateData.contractPeriod = contractPeriod;
+      if (renewalDate) updateData.renewalDate = renewalDate;
+      if (insuranceBroker) updateData.insuranceBroker = insuranceBroker;
+      if (email) updateData.email = email;
+      if (phone) updateData.phone = phone;
+      if (gstNumber) updateData.gstNumber = gstNumber;
+      if (companyStrength) updateData.companyStrength = companyStrength;
+      if (country) updateData.country = country;
+      if (state) updateData.state = state;
+      if (city) updateData.city = city;
+      if (pincode) updateData.pincode = pincode;
+      if (password) updateData.password = password;  // Store password directly
+
+      if (validDiagnostics.length > 0) updateData.diagnostics = validDiagnostics.map(d => d._id);  // Store the array of diagnostic _ids
+      if (imageFile) updateData.image = imageFile;  // Update the uploaded image path
+      if (documents.length > 0) updateData.documents = documents;  // Update the uploaded document paths
+
+      if (parsedContactPerson) {
+        updateData.contactPerson = {
+          name: parsedContactPerson?.name,
+          designation: parsedContactPerson?.designation,
+          gender: parsedContactPerson?.gender,
+          email: parsedContactPerson?.email,
+          phone: parsedContactPerson?.phone,
+          address: {
+            country: parsedContactPerson?.address?.country,
+            state: parsedContactPerson?.address?.state,
+            city: parsedContactPerson?.address?.city,
+            pincode: parsedContactPerson?.address?.pincode,
+            street: parsedContactPerson?.address?.street || 'Not Provided',  // Default if not provided
+          },
+        };
+      }
+
+      // Find the company by ID and update it
+      const updatedCompany = await Company.findByIdAndUpdate(companyId, updateData, { new: true });
+
+      if (!updatedCompany) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+
+      // Respond with success message and the updated company details
+      res.status(200).json({
+        message: 'Company updated successfully!',
+        company: updatedCompany,
+      });
+    } catch (error) {
+      console.error('Error updating company:', error);
+      res.status(500).json({ message: 'Server error', error });
+    }
+  });
+};
+
+
+
+
 export const getCompanies = async (req, res) => {
   try {
     const companies = await Company.find().sort({ createdAt: -1 });
@@ -1061,6 +1499,49 @@ export const getCompanyById = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching company:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+// Delete Company Controller
+export const deleteCompany = async (req, res) => {
+  const { companyId } = req.params; // companyId from URL params
+
+  try {
+    // Check if the company exists
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // Optionally, delete related files and assets (e.g., images and documents)
+    // Assuming `company.image` and `company.documents` hold paths to the files.
+    if (company.image) {
+      // Use fs or a package like 'fs-extra' to delete the file from the server
+      const fs = require('fs');
+      fs.unlinkSync(company.image);
+    }
+
+    if (company.documents && company.documents.length > 0) {
+      const fs = require('fs');
+      company.documents.forEach((doc) => {
+        fs.unlinkSync(doc);
+      });
+    }
+
+    // Delete related diagnostics if necessary (optional)
+    // if (company.diagnostics) {
+    //   await Diagnostic.deleteMany({ _id: { $in: company.diagnostics } });
+    // }
+
+    // Finally, delete the company
+    await Company.findByIdAndDelete(companyId);
+
+    res.status(200).json({ message: 'Company deleted successfully!' });
+  } catch (error) {
+    console.error('Error deleting company:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };
@@ -1616,9 +2097,249 @@ export const logoutDoctor = async (req, res) => {
 };
 
 
+// Diagnostic Login
+export const loginDiagnostic = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check if diagnostic user exists
+    const diagnostic = await Diagnostic.findOne({ email });
+    if (!diagnostic) {
+      return res.status(400).json({ message: 'Diagnostic does not exist' });
+    }
+
+    // Check if password matches (no bcrypt in use here)
+    if (diagnostic.password !== password) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = generateToken(diagnostic._id);
+
+    // Respond with success, token, and diagnostic details
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      diagnostic: {
+        id: diagnostic._id,
+        name: diagnostic.name,
+        email: diagnostic.email,
+        contactNumber: diagnostic.contactNumber,
+        address: diagnostic.address,
+        registrationDate: diagnostic.registrationDate,
+        licenseNumber: diagnostic.licenseNumber,
+        diagnosticCenterName: diagnostic.diagnosticCenterName,
+        diagnosticCenterAddress: diagnostic.diagnosticCenterAddress,
+        country: diagnostic.country,
+        state: diagnostic.state,
+        city: diagnostic.city,
+        pincode: diagnostic.pincode,
+        profilePicture: diagnostic.profilePicture,
+        documents: diagnostic.documents,
+      },
+    });
+  } catch (error) {
+    console.error('Error during diagnostic login:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
 
 
 
+// Diagnostic Logout
+export const logoutDiagnostic = async (req, res) => {
+  try {
+    res.clearCookie('diagnostic_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    res.status(200).json({
+      message: "Diagnostic logout successful. Token cleared from cookies.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Diagnostic logout failed", error });
+  }
+};
+
+
+
+export const importCompaniesFromExcel = async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const workbook = XLSX.readFile(file.path);
+    const sheet = workbook.SheetNames[0];
+    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet]);
+
+    const savedCompanies = [];
+
+    for (const entry of data) {
+      const company = new Company({
+        name: entry.name || '',
+        companyType: entry.companyType || '',
+        assignedBy: entry.assignedBy || '',
+        registrationDate: entry.registrationDate ? new Date(entry.registrationDate) : null,
+        contractPeriod: entry.contractPeriod || '',
+        renewalDate: entry.renewalDate ? new Date(entry.renewalDate) : null,
+        insuranceBroker: entry.insuranceBroker || '',
+        email: entry.email || '',
+        password: entry.password || '',
+        phone: entry.phone || '',
+        gstNumber: entry.gstNumber || '',
+        companyStrength: Number(entry.companyStrength) || 0,
+        image: entry.image || '',
+        country: entry.country || '',
+        state: entry.state || '',
+        city: entry.city || '',
+        pincode: entry.pincode || '',
+        contactPerson: {
+          name: entry.contactPerson_name || '',
+          designation: entry.contactPerson_designation || '',
+          gender: entry.contactPerson_gender || '',
+          email: entry.contactPerson_email || '',
+          phone: entry.contactPerson_phone || '',
+          address: {
+            country: entry.contactPerson_country || '',
+            state: entry.contactPerson_state || '',
+            city: entry.contactPerson_city || '',
+            pincode: entry.contactPerson_pincode || '',
+            street: entry.contactPerson_street || ''
+          }
+        },
+        diagnostics: entry.diagnostics
+          ? entry.diagnostics.split(',').map(id => id.trim())
+          : [],
+        documents: entry.documents
+          ? entry.documents.split(',').map(doc => doc.trim())
+          : [],
+        staff: [] // Staff bulk add ka feature alag se banega
+      });
+
+      const saved = await company.save();
+      savedCompanies.push(saved);
+    }
+
+    fs.unlinkSync(file.path); // remove uploaded Excel file
+
+    res.status(200).json({
+      message: 'Companies imported successfully',
+      data: savedCompanies
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to import companies' });
+  }
+};
+
+
+
+
+export const importStaffFromExcel = async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const workbook = XLSX.readFile(file.path);
+    const sheet = workbook.SheetNames[0];
+    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet]);
+
+    const savedStaff = [];
+
+    for (const entry of data) {
+      try {
+        const staff = new Staff({
+          name: entry.name || '',
+          email: entry.email || '',
+          password: entry.password || '',
+          role: entry.role || 'Staff', // Default to 'Staff' role
+          contact_number: entry.contact_number || '',
+          address: entry.address || '',
+          createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+          updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : new Date(),
+          myBookings: entry.myBookings ? entry.myBookings.split(',').map(id => id.trim()) : [],
+          wallet_balance: Number(entry.wallet_balance) || 0,
+          doctorAppointments: entry.doctorAppointments ? entry.doctorAppointments.split(',').map(id => mongoose.Types.ObjectId(id.trim())) : [], // Convert to ObjectId
+          wallet_logs: parseJsonField(entry.wallet_logs),
+          family_members: parseJsonField(entry.family_members),
+          profileImage: entry.profileImage || '',
+          addresses: parseJsonField(entry.addresses),
+          issues: parseJsonField(entry.issues)
+        });
+
+        const saved = await staff.save();
+        savedStaff.push(saved);
+      } catch (error) {
+        console.error('Error processing entry:', entry, error);
+      }
+    }
+
+    fs.unlinkSync(file.path); // Remove the uploaded Excel file
+
+    res.status(200).json({
+      message: 'Staff imported successfully',
+      data: savedStaff
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to import staff' });
+  }
+};
+
+// Helper function to parse JSON fields safely
+function parseJsonField(field) {
+  if (!field) return [];
+  
+  try {
+    // Assuming the field is a comma-separated string of JSON objects
+    return field.split(',').map(item => {
+      try {
+        return JSON.parse(item.trim()); // Trim extra spaces and parse JSON
+      } catch (e) {
+        console.error('Invalid JSON:', item);
+        return {}; // Return an empty object on invalid JSON
+      }
+    });
+  } catch (error) {
+    console.error('Error parsing field:', field, error);
+    return [];
+  }
+}
+
+
+
+// Controller function
+export const getDashboardCounts = async (req, res) => {
+  try {
+    const companyCount = await Company.countDocuments();
+    const diagnosticCount = await Diagnostic.countDocuments();
+    const appointmentCount = await Appointment.countDocuments();
+    const bookingCount = await Booking.countDocuments();
+    const staffCount = await Staff.countDocuments();
+    const doctorCount = await Doctor.countDocuments(); // Doctor count
+
+    res.status(200).json({
+      success: true,
+      data: {
+        companies: companyCount,
+        diagnostics: diagnosticCount,
+        appointments: appointmentCount,
+        bookings: bookingCount,
+        staff: staffCount,
+        doctors: doctorCount // Send doctor count in response
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching counts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching counts",
+      error: error.message,
+    });
+  }
+};
   
   
 

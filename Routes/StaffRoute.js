@@ -18,7 +18,8 @@ import { getWalletBalance,
   updateIssueStatus,
   getStaffIssues,
   getDoctorAppointmentsForStaff,
-  getAllDiagnosticBookingForStaff
+  getAllDiagnosticBookingForStaff,
+  getStaffTestPackageById
 
  } from '../Controller/ControllerStaff.js';
 
@@ -61,6 +62,7 @@ router.put('/updateissue/:staffId/:issueId', updateIssueStatus);
 
 router.get('/getdoctorappointment/:staffId', getDoctorAppointmentsForStaff);  // update existing
 router.get('/getalldiagbookings/:staffId', getAllDiagnosticBookingForStaff);  // update existing
+router.get('/stafftestpackages/:staffId', getStaffTestPackageById);
 
 
 

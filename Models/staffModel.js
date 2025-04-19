@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+// Define the schema for Staff
 const staffSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -9,11 +10,14 @@ const staffSchema = new mongoose.Schema({
     unique: true,
   },
   profileImage: {
-    type: String, // Store the filename of the uploaded image
+    type: String,
     default: null,
   },
   password: {
     type: String,
+  },
+  age: {
+    type: Number,
   },
   role: {
     type: String,
@@ -36,7 +40,6 @@ const staffSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-
   wallet_logs: [
     {
       type: {
@@ -55,6 +58,27 @@ const staffSchema = new mongoose.Schema({
     },
   ],
 
+  // myTest array stores diagnostic and test data
+  myTest: [
+    {
+      diagnosticId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Diagnostic',  // Reference to the Diagnostic model
+      },
+      testId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Test',  // Reference to the Test model
+      },
+      test_name: {
+        type: String,
+      },
+      price: {
+        type: Number,
+      },
+    },
+  ],
+
+  // Additional fields
   doctorAppointments: [
     {
       appointmentId: {
@@ -88,7 +112,6 @@ const staffSchema = new mongoose.Schema({
     },
   ],
 
-  // Moved `family_members` here as a direct field of Staff
   family_members: [
     {
       fullName: { type: String },
@@ -96,41 +119,39 @@ const staffSchema = new mongoose.Schema({
       age: { type: Number },
       gender: { type: String, enum: ['Male', 'Female', 'Other'] },
       DOB: { type: Date },
-      height: { type: Number }, // in cm
-      weight: { type: Number }, // in kg
+      height: { type: Number },
+      weight: { type: Number },
       eyeSight: { type: String },
       BMI: { type: Number },
-      BP: { type: String }, // BP as string (e.g., 120/80)
-      sugar: { type: String }, // e.g., Normal, High, Low
-      relation: { type: String }, // e.g., Mother, Father, etc.
+      BP: { type: String },
+      sugar: { type: String },
+      relation: { type: String },
     },
   ],
 
   addresses: [
-  {
-    street: { type: String },
-    city: { type: String },
-    state: { type: String },
-    country: { type: String },
-    postalCode: { type: String },
-    addressType: { type: String, enum: ['Home', 'Office', 'Other'], default: 'Home' }
-  }
-],
+    {
+      street: { type: String },
+      city: { type: String },
+      state: { type: String },
+      country: { type: String },
+      postalCode: { type: String },
+      addressType: { type: String, enum: ['Home', 'Office', 'Other'], default: 'Home' },
+    },
+  ],
 
-issues: [
-  {
-    reason: { type: String, },
-    description: { type: String, },
-    file: { type: String }, // File name (if file is uploaded)
-    status: { type: String, default: 'Processing' }, // Default status is "Processing"
-    response: { type: String, default: '' }, // Admin's response to the issue
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
-  }
-],
-
+  issues: [
+    {
+      reason: { type: String },
+      description: { type: String },
+      file: { type: String },
+      status: { type: String, default: 'Processing' },
+      response: { type: String, default: '' },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+    },
+  ],
 }, { timestamps: true });
 
 const Staff = mongoose.model('Staff', staffSchema);
-
 export default Staff;

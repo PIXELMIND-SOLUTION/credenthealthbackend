@@ -995,6 +995,54 @@ export const getAllDiagnosticBookingForStaff = async (req, res) => {
 };
 
 
+export const getStaffTestPackageById = async (req, res) => {
+  const { staffId } = req.params;
+
+  try {
+    const staffMember = await Staff.findById(staffId)
+      .populate({
+        path: 'myTest.diagnosticId',
+        model: 'Diagnostic',
+        select: 'name address centerType email phone tests'
+      })
+      .lean();
+
+    if (!staffMember) {
+      return res.status(404).json({ message: 'Staff member not found.' });
+    }
+
+    const expandedTests = staffMember.myTest.map((testItem) => {
+      const diagnostic = testItem.diagnosticId;
+      const matchedTest = diagnostic?.tests?.find(
+        (t) => t._id.toString() === testItem.testId.toString()
+      );
+
+      return {
+        _id: testItem._id,
+        testId: testItem.testId,
+        test_name: testItem.test_name,
+        price: testItem.price,
+        diagnosticCenter: {
+          name: diagnostic?.name || '',
+          address: diagnostic?.address || '',
+          email: diagnostic?.email || '',
+          phone: diagnostic?.phone || '',
+          centerType: diagnostic?.centerType || '',
+        },
+        testDetails: matchedTest || {},
+      };
+    });
+
+    res.status(200).json({
+      message: '✅ Test packages fetched successfully.',
+      myTest: expandedTests
+    });
+  } catch (error) {
+    console.error('❌ Error:', error);
+    res.status(500).json({ message: 'Server error while fetching test packages.' });
+  }
+};
+
 
 
 

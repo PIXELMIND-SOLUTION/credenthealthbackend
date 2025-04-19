@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-// Define the schema for the diagnostic tests
+// Define the schema for diagnostic tests
 const testSchema = new mongoose.Schema({
   test_name: { type: String },
   description: { type: String },
@@ -15,7 +15,7 @@ const diagnosticSchema = new mongoose.Schema({
   image: { type: String },  // Image URL or path
   address: { type: String },
 
-  // 👇 Additional fields removed `required`
+  // Additional fields for the diagnostic center
   centerType: { type: String },
   email: { type: String },
   phone: { type: String },
@@ -31,9 +31,9 @@ const diagnosticSchema = new mongoose.Schema({
     {
       name: { type: String },
       designation: { type: String },
-      gender: { type: String, },
+      gender: { type: String },
       contactEmail: { type: String },
-      contactNumber: { type: String }
+      contactNumber: { type: String },
     }
   ],
 
@@ -42,10 +42,8 @@ const diagnosticSchema = new mongoose.Schema({
   password: { type: String },
 
   // Tests offered by center
-  tests: [testSchema]
-
+  tests: [testSchema],
 }, { timestamps: true });
 
 const Diagnostic = mongoose.model('Diagnostic', diagnosticSchema);
-
 export default Diagnostic;

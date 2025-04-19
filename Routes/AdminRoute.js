@@ -51,7 +51,8 @@ import { signupAdmin,
     deleteStaffProfile,
     deleteDiagnosticCenter,
     deleteBookingById,
-    getDashboardCounts
+    getDashboardCounts,
+    addTestsToStaffByAgeGroup
  } from '../Controller/ControllerAdmin.js';
  import multer from 'multer';
  const upload = multer({ dest: 'uploads/' });
@@ -177,6 +178,9 @@ router.post('/import-companies', upload.single('file'), importCompaniesFromExcel
 router.post('/import-staffs', upload.single('file'), importStaffFromExcel);
 
 router.get('/getdashboardcount', getDashboardCounts);
+router.post('/add-tests', addTestsToStaffByAgeGroup);
+
+
 
 
 

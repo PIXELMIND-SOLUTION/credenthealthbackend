@@ -2340,6 +2340,113 @@ export const getDashboardCounts = async (req, res) => {
     });
   }
 };
+
+
+
+// Helper function to map age group to range (3-year intervals)
+const getAgeRange = (ageGroup) => {
+  const ageRanges = {
+    '20-23': [20, 23],
+    '23-26': [23, 26],
+    '26-29': [26, 29],
+    '29-32': [29, 32],
+    '32-35': [32, 35],
+    '35-38': [35, 38],
+    '38-41': [38, 41],
+    '41-44': [41, 44],
+    '44-47': [44, 47],
+    '47-50': [47, 50],
+    '50-53': [50, 53],
+    '53-56': [53, 56],
+    '56-59': [56, 59],
+    '59-62': [59, 62],
+    '62-65': [62, 65],
+    '65-68': [65, 68],
+    '68-71': [68, 71],
+    '71-74': [71, 74],
+    '74-77': [74, 77],
+    '77-80': [77, 80]
+  };
+  return ageRanges[ageGroup];
+};
+
+// Controller to add tests to staff based on age group and selected diagnostics
+export const addTestsToStaffByAgeGroup = async (req, res) => {
+  const { ageGroup, diagnostics } = req.body;
+
+  // Validate the inputs
+  if (!ageGroup || !Array.isArray(diagnostics) || diagnostics.length === 0) {
+    return res.status(400).json({ message: 'Invalid input data. Age group and diagnostics are required.' });
+  }
+
+  // Get the age range based on the provided age group
+  const ageRange = getAgeRange(ageGroup);
+  if (!ageRange) {
+    return res.status(400).json({ message: 'Invalid age group. Please provide a valid age group.' });
+  }
+
+  try {
+    // Find staff members in the specified age range
+    const staffMembers = await Staff.find({
+      age: { $gte: ageRange[0], $lte: ageRange[1] }
+    });
+
+    if (staffMembers.length === 0) {
+      return res.status(404).json({ message: 'No staff members found for the selected age group.' });
+    }
+
+    // Find the diagnostics from the database based on the provided diagnostic names
+    const diagnosticNames = diagnostics.map(d => d.diagnosticName);
+    const diagnosticDocs = await Diagnostic.find({
+      name: { $in: diagnosticNames }
+    });
+
+    if (diagnosticDocs.length === 0) {
+      return res.status(404).json({ message: 'No diagnostics found matching the provided names.' });
+    }
+
+    // Iterate through each staff member and add the selected tests to their myTest[] array
+    for (const staff of staffMembers) {
+      diagnostics.forEach(async (diagnostic) => {
+        const matchedDiagnostic = diagnosticDocs.find(d => d.name === diagnostic.diagnosticName);
+
+        if (matchedDiagnostic) {
+          // Iterate through the selected tests
+          for (const selectedTest of diagnostic.selectedTests) {
+            const matchedTest = matchedDiagnostic.tests.find(test => test.test_name === selectedTest.test_name);
+
+            if (matchedTest) {
+              // Add the test to the staff's `myTest[]` array
+              staff.myTest.push({
+                diagnosticId: matchedDiagnostic._id,  // Diagnostic ID
+                testId: matchedTest._id,  // Test ID
+                test_name: matchedTest.test_name,  // Test name
+                price: matchedTest.price  // Test price
+              });
+
+              // Log the updated `myTest[]` array after pushing the test
+              console.log(`Test "${matchedTest.test_name}" has been added to staff ${staff.name} myTest[] array.`);
+              console.log('Updated myTest[] array:', staff.myTest);
+            }
+          }
+
+          // Save the updated staff member
+          await staff.save();
+        }
+      });
+    }
+
+    // Respond with success message and the updated staff members
+    res.status(200).json({
+      message: 'Tests successfully added to staff members',
+      staffMembers,
+    });
+
+  } catch (error) {
+    console.error('Error adding tests to staff:', error);
+    res.status(500).json({ message: 'Server error while adding tests to staff.' });
+  }
+};
   
   
 

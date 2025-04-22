@@ -3,50 +3,50 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import connectDatabase from './db/connectDatabase.js';
-import bookingRoutes from './Routes/bookingRotes.js'
-import adminRoutes from './Routes/AdminRoute.js'
-import staffRoutes from './Routes/StaffRoute.js'
+import bookingRoutes from './Routes/bookingRotes.js';
+import adminRoutes from './Routes/AdminRoute.js';
+import staffRoutes from './Routes/StaffRoute.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
-// CORS Configuration to allow multiple origins
+// ✅ Serve static files from /uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ✅ CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://credenthealthadmin.vercel.app'],  // Multiple allowed origins
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Allowed HTTP methods
-    credentials: true  // Allow cookies if needed
-  }));
-  
-  
+  origin: ['http://localhost:3000', 'https://credenthealthadmin.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-
-// Database connection
+// ✅ DB Connection
 connectDatabase();
 
+// ✅ API Routes
+app.use('/api/admin', adminRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/booking', bookingRoutes);
 
-
-app.use('/api/admin', adminRoutes); // Use the admin routes
-app.use('/api/staff', staffRoutes); // Use the admin routes
-app.use('/api/booking', bookingRoutes); // Use the admin routes
-
-
-
-
-
-
-// Default route
+// ✅ Test Route
 app.get("/", (req, res) => {
- res.json({ message: "Hello from CredenHealth" });
+  res.json({ message: "Hello from CredenHealth" });
 });
 
-// Start the server
-const port = process.env.PORT || 6000; // Use the PORT environment variable if available, or default to 4000
-
-const server = app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+// ✅ Start Server
+const port = process.env.PORT || 6000;
+app.listen(port, () => {
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });

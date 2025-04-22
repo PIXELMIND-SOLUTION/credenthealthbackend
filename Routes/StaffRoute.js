@@ -19,7 +19,8 @@ import { getWalletBalance,
   getStaffIssues,
   getDoctorAppointmentsForStaff,
   getAllDiagnosticBookingForStaff,
-  getStaffTestPackageById
+  getStaffTestPackageById,
+  getAppointment
 
  } from '../Controller/ControllerStaff.js';
 
@@ -29,6 +30,7 @@ const router = express.Router();
 router.post('/login-staff', staffLogin);
 router.get('/wallet/:staffId', getWalletBalance);
 router.post('/bookappoint', bookAppointment);
+router.get('/getappoint/:staffId/:appointmentId', getAppointment);
 router.post('/process-payment/:staffId/:appointmentId', processPayment);
 
 // Routes for family members

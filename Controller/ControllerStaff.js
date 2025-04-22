@@ -194,6 +194,7 @@ export const staffLogin = async (req, res) => {
           appointmentId: newAppointment._id,  // Include appointmentId in the response
           doctor_name: doctor.name,
           doctor_specialization: doctor.specialization,
+          staff_name: staff.name,  // Added this line
           appointment_date: appointmentDateTime,
           patient_name: newAppointment.patient_name,
           patient_relation: newAppointment.patient_relation,
@@ -207,6 +208,69 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+
+
+  export const getAppointment = async (req, res) => {
+    try {
+      const { staffId, appointmentId } = req.params;  // Get staffId and appointmentId from route parameters
+  
+      // 1. Check if staffId is provided
+      if (!staffId) {
+        return res.status(400).json({ message: 'Staff ID is required' });
+      }
+  
+      // 2. Find the staff by staffId
+      const staff = await Staff.findById(staffId);
+      if (!staff) {
+        return res.status(404).json({ message: 'Staff not found' });
+      }
+  
+      // 3. Check if appointmentId is provided
+      if (!appointmentId) {
+        return res.status(400).json({ message: 'Appointment ID is required' });
+      }
+  
+      // 4. Find the appointment by appointmentId
+      const appointment = await Appointment.findById(appointmentId);
+      if (!appointment) {
+        return res.status(404).json({ message: 'Appointment not found' });
+      }
+  
+      // 5. Check if the appointment belongs to the staff
+      if (appointment.staff.toString() !== staff._id.toString()) {
+        return res.status(403).json({ message: 'This appointment does not belong to the specified staff' });
+      }
+  
+      // 6. Retrieve the doctor details
+      const doctor = await Doctor.findById(appointment.doctor);
+      if (!doctor) {
+        return res.status(404).json({ message: 'Doctor not found' });
+      }
+  
+      // 7. Return the appointment details in the response
+      res.status(200).json({
+        message: 'Appointment details retrieved successfully',
+        appointment: {
+          appointmentId: appointment._id,
+          doctor_name: doctor.name,
+          doctor_specialization: doctor.specialization,
+          staff_name: staff.name,
+          appointment_date: appointment.appointment_date,
+          patient_name: appointment.patient_name,
+          patient_relation: appointment.patient_relation,
+          status: appointment.status,
+          subtotal: appointment.subtotal,
+          total: appointment.total
+        },
+      });
+    } catch (error) {
+      console.error('Error retrieving appointment:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
+  
+  
   
   
 

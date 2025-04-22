@@ -1,41 +1,43 @@
 import Doctor from '../Models/doctorModel.js';
 
-// Create Doctor Details
-export const createDoctorDetails = async (req, res) => {
+export const createDoctor = async (req, res) => {
   try {
     const {
       name,
-      category,  // category now instead of specialization
-      contact_number,
-      email,
-      clinic_address,
+      specialization,
+      qualification,
+      description,
       consultation_fee,
-      available_days,
-      working_hours,
-      tests
+      address,
+      category,
     } = req.body;
 
-    // Create new doctor instance
+    let imagePath = null;
+
+    if (req.file) {
+      // This is the relative path to access image via URL
+      imagePath = `/uploads/doctorimages/${req.file.filename}`;
+    }
+
     const newDoctor = new Doctor({
       name,
-      category,  // Save category
-      contact_number,
-      email,
-      clinic_address,
+      specialization,
+      qualification,
+      description,
       consultation_fee,
-      available_days,
-      working_hours,
-      tests
+      address,
+      category,
+      image: imagePath,
     });
 
-    // Save doctor to MongoDB
     await newDoctor.save();
 
     res.status(201).json({
-      message: 'Doctor details created successfully',
-      doctor: newDoctor
+      message: 'Doctor created successfully',
+      doctor: newDoctor,
     });
   } catch (error) {
+    console.error('Error creating doctor:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };

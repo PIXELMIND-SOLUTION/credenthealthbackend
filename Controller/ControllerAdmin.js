@@ -1181,13 +1181,17 @@ export const deleteBookingById = async (req, res) => {
 
 export const getAllDoctorAppointments = async (req, res) => {
   try {
-    // Fetch all appointments from the Appointment model
+    // Fetch all appointments with populated doctor and staff details
     const appointments = await Appointment.find()
       .populate({
         path: 'doctor',
         select: 'name specialization image'
       })
-      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor');
+      .populate({
+        path: 'staff',
+        select: 'name' // Assuming 'name' field exists in the Staff model
+      })
+      .select('patient_name patient_relation age gender subtotal total appointment_date status doctor staff');
 
     res.status(200).json({
       message: 'All doctor appointments fetched successfully',
@@ -1196,6 +1200,7 @@ export const getAllDoctorAppointments = async (req, res) => {
         doctor_name: appointment.doctor?.name,
         doctor_specialization: appointment.doctor?.specialization,
         doctor_image: appointment.doctor?.image,
+        staff_name: appointment.staff?.name, // Added staff name here
         appointment_date: appointment.appointment_date,
         status: appointment.status,
         patient_name: appointment.patient_name,

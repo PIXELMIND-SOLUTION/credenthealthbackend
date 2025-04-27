@@ -109,57 +109,51 @@ export const staffLogin = async (req, res) => {
         staffId,
         patient_name,
         patient_relation,
-        schedule,  // The new field for schedule containing day, date, time slots
+        appointment_date,
+        appointment_time,
       } = req.body;
-    
-      console.log('Received Appointment Data:', req.body);  // Log the received data
-    
-      // 1. Find doctor by doctorId
+  
+      console.log('Received Appointment Data:', req.body);
+  
       const doctor = await Doctor.findById(doctorId);
       if (!doctor) {
         return res.status(400).json({ message: 'Doctor not found' });
       }
-    
-      // 2. Find staff by staffId or name
+  
       let staff;
       if (staffId) {
-        // If staffId is provided, find staff by staffId
         staff = await Staff.findById(staffId);
       }
-    
-      // If no staff found by staffId, try finding staff by name
+  
       if (!staff && req.body.name) {
         staff = await Staff.findOne({ name: req.body.name });
       }
-    
+  
       if (!staff) {
         return res.status(400).json({ message: 'Staff not found' });
       }
-    
-      // 3. Create the appointment with the provided schedule (day, date, time slots)
-      const subtotal = doctor.consultation_fee || 0;  // Assuming consultation fee is the base charge
-      const total = subtotal;  // Currently, the total is the same as the subtotal (can be updated to include tests, taxes, etc.)
-    
+  
+      const subtotal = doctor.consultation_fee || 0;
+      const total = subtotal;
+  
       const newAppointment = new Appointment({
         doctor: doctor._id,
         staff: staff._id,
-        status: 'Pending',  // Initial status of the appointment
-        patient_name: patient_name || staff.name,  // Use staff's name as default if no family member is specified
-        patient_relation: patient_relation || 'Self',  // Default relation to 'Self' if not provided
+        status: 'Pending',
+        patient_name: patient_name || staff.name,
+        patient_relation: patient_relation || 'Self',
         subtotal,
         total,
-        schedule, // Include the schedule data (day, date, time slots) here
+        appointment_date,   // 👈 simple date
+        appointment_time,   // 👈 simple time
       });
-    
-      // Save the appointment to the database
+  
       await newAppointment.save();
-    
-      // Ensure the doctorAppointments array exists in the staff document
+  
       if (!staff.doctorAppointments) {
         staff.doctorAppointments = [];
       }
-    
-      // Add the appointment to the staff's `doctorAppointments[]` field
+  
       staff.doctorAppointments.push({
         appointmentId: newAppointment._id,
         doctor: doctor._id,
@@ -169,16 +163,13 @@ export const staffLogin = async (req, res) => {
         subtotal,
         total,
       });
-    
-      // Save updated staff details
+  
       await staff.save();
-    
-      // Ensure the appointments array exists in the doctor document
+  
       if (!doctor.appointments) {
         doctor.appointments = [];
       }
-    
-      // Add the appointment to the doctor's record (optional, depending on your use case)
+  
       doctor.appointments.push({
         appointmentId: newAppointment._id,
         staff: staff._id,
@@ -186,23 +177,23 @@ export const staffLogin = async (req, res) => {
         patient_name: newAppointment.patient_name,
         patient_relation: newAppointment.patient_relation,
       });
-    
+  
       await doctor.save();
-    
-      // 7. Respond with the appointment details including appointmentId, subtotal, total, and schedule
+  
       res.status(201).json({
         message: 'Appointment booked successfully',
         appointment: {
-          appointmentId: newAppointment._id,  // Include appointmentId in the response
+          appointmentId: newAppointment._id,
           doctor_name: doctor.name,
           doctor_specialization: doctor.specialization,
-          staff_name: staff.name,  // Added this line
+          staff_name: staff.name,
           patient_name: newAppointment.patient_name,
           patient_relation: newAppointment.patient_relation,
           status: newAppointment.status,
-          subtotal,  // Subtotal (consultation fee)
-          total,       // Total (currently the same as subtotal)
-          schedule: newAppointment.schedule, // Include the schedule in the response
+          subtotal,
+          total,
+          appointment_date: newAppointment.appointment_date,  // 👈 returning date
+          appointment_time: newAppointment.appointment_time,  // 👈 returning time
         },
       });
     } catch (error) {
@@ -210,6 +201,7 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
 
 
@@ -945,7 +937,7 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
     const staff = await Staff.findById(staffId)
       .populate({
         path: 'doctorAppointments.appointmentId', // Populate the appointment details
-        select: 'patient_name patient_relation age gender subtotal total appointment_date status payment_status schedule', // Fields to return from the appointment
+        select: 'patient_name patient_relation age gender subtotal total appointment_date appointment_time status payment_status schedule', // Fields to return from the appointment
       })
       .populate({
         path: 'doctorAppointments.doctor', // Populate the doctor details inside each appointment
@@ -981,6 +973,7 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
         doctor_specialization: appointment.doctor.specialization,
         doctor_image: appointment.doctor.image,
         appointment_date: appointment.appointmentId.appointment_date, // Adding the appointment_date from the appointment
+        appointment_time: appointment.appointmentId.appointment_time, // Adding the appointment_date from the appointment
         status: appointment.appointmentId.status,
         patient_name: appointment.appointmentId.patient_name,
         patient_relation: appointment.appointmentId.patient_relation,

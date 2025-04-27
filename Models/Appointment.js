@@ -11,7 +11,10 @@ const appointmentSchema = new mongoose.Schema(
       ref: 'Staff',
     },
     appointment_date: {
-      type: String,  // Date and time of the appointment
+      type: String, // e.g., "2025-04-28"
+    },
+    appointment_time: {
+      type: String, // e.g., "10:30 AM"
     },
     status: {
       type: String,
@@ -20,10 +23,10 @@ const appointmentSchema = new mongoose.Schema(
     },
     patient_name: {
       type: String,
-      required: true,
     },
     patient_relation: {
       type: String,
+      default: 'Self',
     },
     subtotal: {
       type: Number,
@@ -38,16 +41,6 @@ const appointmentSchema = new mongoose.Schema(
       enum: ['Pending', 'Paid'],
       default: 'Pending',
     },
-    // New schedule field to store appointment day, date, and time slots
-    schedule: [
-      {
-        day: { type: String },  // e.g., Monday, Tuesday
-        date: { type: String }, // e.g., 28-04-2025
-        time_slots: [
-          { time: { type: String } },  // e.g., 09:00 AM, 09:30 AM
-        ],
-      },
-    ],
   },
   { timestamps: true }
 );

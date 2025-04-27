@@ -881,9 +881,10 @@ export const addAmountToWallet = async (req, res) => {
 };
 
 
+
 export const createDoctor = async (req, res) => {
   try {
-    // First handle the image upload
+    // Handle the image upload
     uploadDoctorImage(req, res, async (err) => {
       if (err) {
         return res.status(400).json({ message: 'Error uploading image', error: err.message });
@@ -896,7 +897,7 @@ export const createDoctor = async (req, res) => {
       const parsedSchedule = schedule ? JSON.parse(schedule) : [];
 
       // Get the image path (this will be the file path saved in the uploads directory)
-      const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : null;  // Save the image path in the DB
+      const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : null;
 
       // Create a new Doctor document
       const doctor = new Doctor({
@@ -910,7 +911,7 @@ export const createDoctor = async (req, res) => {
         address,
         image,
         category,
-        schedule: parsedSchedule, // Save the parsed schedule (as an array of objects)
+        schedule: parsedSchedule, // Save the parsed schedule (with day, date, and time slots)
       });
 
       // Save the doctor to the database

@@ -104,7 +104,16 @@ export const staffLogin = async (req, res) => {
 
   export const bookAppointment = async (req, res) => {
     try {
-      const { doctorId, staffId, name, appointment_date, appointment_time, patient_name, patient_relation } = req.body;
+      const {
+        doctorId,
+        staffId,
+        name,
+        appointment_date,
+        appointment_time,
+        patient_name,
+        patient_relation,
+        schedule,  // The new field for schedule
+      } = req.body;
   
       console.log('Received Appointment Data:', req.body);  // Log the received data
   
@@ -133,7 +142,7 @@ export const staffLogin = async (req, res) => {
       // 3. Check if the doctor is available on the given date (you can extend this check with available hours or days logic)
       const appointmentDateTime = new Date(`${appointment_date}T${appointment_time}:00`);
   
-      // 4. Create the appointment
+      // 4. Create the appointment with the provided schedule (day, date, time slots)
       const subtotal = doctor.consultation_fee || 0;  // Assuming consultation fee is the base charge
       const total = subtotal;  // Currently, the total is the same as the subtotal (can be updated to include tests, taxes, etc.)
   
@@ -145,7 +154,8 @@ export const staffLogin = async (req, res) => {
         patient_name: patient_name || staff.name,  // Use staff's name as default if no family member is specified
         patient_relation: patient_relation || 'Self',  // Default relation to 'Self' if not provided
         subtotal,
-        total
+        total,
+        schedule, // Include the schedule data (day, date, time_slots) here
       });
   
       // Save the appointment to the database
@@ -165,7 +175,7 @@ export const staffLogin = async (req, res) => {
         patient_name: newAppointment.patient_name,
         patient_relation: newAppointment.patient_relation,
         subtotal,
-        total
+        total,
       });
   
       // Save updated staff details
@@ -185,6 +195,7 @@ export const staffLogin = async (req, res) => {
         patient_name: newAppointment.patient_name,
         patient_relation: newAppointment.patient_relation,
       });
+  
       await doctor.save();
   
       // 7. Respond with the appointment details including appointmentId, subtotal, and total
@@ -200,7 +211,8 @@ export const staffLogin = async (req, res) => {
           patient_relation: newAppointment.patient_relation,
           status: newAppointment.status,
           subtotal,  // Subtotal (consultation fee)
-          total       // Total (currently the same as subtotal)
+          total,       // Total (currently the same as subtotal)
+          schedule: newAppointment.schedule, // Include the schedule in the response
         },
       });
     } catch (error) {
@@ -939,12 +951,11 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
     const { staffId } = req.params;
     const { status } = req.body; // Get the status filter from the request body, if any
 
-
     // Find staff by ID and populate doctorAppointments and related doctor details
     const staff = await Staff.findById(staffId)
       .populate({
         path: 'doctorAppointments.appointmentId', // Populate the appointment details
-        select: 'patient_name patient_relation age gender subtotal total appointment_date status', // Fields to return from the appointment
+        select: 'patient_name patient_relation age gender subtotal total appointment_date status payment_status schedule', // Fields to return from the appointment
       })
       .populate({
         path: 'doctorAppointments.doctor', // Populate the doctor details inside each appointment
@@ -955,27 +966,38 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
       return res.status(404).json({ message: 'Staff not found' });
     }
 
+    // Filter by status if it is provided in the request body
+    const filteredAppointments = status
+      ? staff.doctorAppointments.filter((appointment) => appointment.status === status)
+      : staff.doctorAppointments;
 
-        // Filter by status if it is provided in the request body
-        const filteredAppointments = status
-        ? staff.doctorAppointments.filter((appointment) => appointment.status === status)
-        : staff.doctorAppointments;
-  
-
-    // Returning the staff and their doctor appointments along with doctor details
+    // Returning the staff details and their doctor appointments along with doctor details and schedule
     res.status(200).json({
       message: 'Doctor appointments fetched successfully',
+      staff: {
+        staffId: staff._id,
+        name: staff.name,
+        email: staff.email,
+        contact_number: staff.contact_number,
+        profileImage: staff.profileImage,
+        role: staff.role,
+        wallet_balance: staff.wallet_balance,
+        address: staff.address,
+        myBookings: staff.myBookings,
+      },
       appointments: filteredAppointments.map((appointment) => ({
         appointmentId: appointment.appointmentId._id,
         doctor_name: appointment.doctor.name,
         doctor_specialization: appointment.doctor.specialization,
         doctor_image: appointment.doctor.image,
-        appointment_date: appointment.appointment_date,
-        status: appointment.status,
-        patient_name: appointment.patient_name,
-        patient_relation: appointment.patient_relation,
-        subtotal: appointment.subtotal,
-        total: appointment.total,
+        appointment_date: appointment.appointmentId.appointment_date, // Adding the appointment_date from the appointment
+        status: appointment.appointmentId.status,
+        patient_name: appointment.appointmentId.patient_name,
+        patient_relation: appointment.appointmentId.patient_relation,
+        subtotal: appointment.appointmentId.subtotal,
+        total: appointment.appointmentId.total,
+        payment_status: appointment.appointmentId.payment_status,
+        schedule: appointment.appointmentId.schedule, // Adding schedule from the appointment
       })),
     });
   } catch (error) {
@@ -983,6 +1005,7 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 // Controller to get details of bookings for a staff member with optional status filter

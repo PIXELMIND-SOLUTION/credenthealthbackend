@@ -78,7 +78,7 @@ const staffSchema = new mongoose.Schema({
     },
   ],
 
-  // Additional fields
+  // Updated doctorAppointments array to reflect schedule
   doctorAppointments: [
     {
       appointmentId: {
@@ -90,7 +90,7 @@ const staffSchema = new mongoose.Schema({
         ref: 'Doctor',
       },
       appointment_date: {
-        type: Date,
+        type: String,
       },
       status: {
         type: String,
@@ -109,6 +109,15 @@ const staffSchema = new mongoose.Schema({
       total: {
         type: Number,
       },
+      schedule: [
+        {
+          day: { type: String },  // e.g., Monday, Tuesday
+          date: { type: String },  // e.g., 28-04-2025
+          time_slots: [
+            { time: { type: String } },  // e.g., 09:00 AM, 09:30 AM
+          ],
+        },
+      ], // The schedule with time slots
     },
   ],
 

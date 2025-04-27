@@ -107,98 +107,89 @@ export const staffLogin = async (req, res) => {
       const {
         doctorId,
         staffId,
-        name,
-        appointment_date,
-        appointment_time,
         patient_name,
         patient_relation,
-        schedule,  // The new field for schedule
+        schedule,  // The new field for schedule containing day, date, time slots
       } = req.body;
-  
+    
       console.log('Received Appointment Data:', req.body);  // Log the received data
-  
+    
       // 1. Find doctor by doctorId
       const doctor = await Doctor.findById(doctorId);
       if (!doctor) {
         return res.status(400).json({ message: 'Doctor not found' });
       }
-  
+    
       // 2. Find staff by staffId or name
       let staff;
       if (staffId) {
         // If staffId is provided, find staff by staffId
         staff = await Staff.findById(staffId);
       }
-  
+    
       // If no staff found by staffId, try finding staff by name
-      if (!staff && name) {
-        staff = await Staff.findOne({ name: name });
+      if (!staff && req.body.name) {
+        staff = await Staff.findOne({ name: req.body.name });
       }
-  
+    
       if (!staff) {
         return res.status(400).json({ message: 'Staff not found' });
       }
-  
-      // 3. Check if the doctor is available on the given date (you can extend this check with available hours or days logic)
-      const appointmentDateTime = new Date(`${appointment_date}T${appointment_time}:00`);
-  
-      // 4. Create the appointment with the provided schedule (day, date, time slots)
+    
+      // 3. Create the appointment with the provided schedule (day, date, time slots)
       const subtotal = doctor.consultation_fee || 0;  // Assuming consultation fee is the base charge
       const total = subtotal;  // Currently, the total is the same as the subtotal (can be updated to include tests, taxes, etc.)
-  
+    
       const newAppointment = new Appointment({
         doctor: doctor._id,
         staff: staff._id,
-        appointment_date: appointmentDateTime,
         status: 'Pending',  // Initial status of the appointment
         patient_name: patient_name || staff.name,  // Use staff's name as default if no family member is specified
         patient_relation: patient_relation || 'Self',  // Default relation to 'Self' if not provided
         subtotal,
         total,
-        schedule, // Include the schedule data (day, date, time_slots) here
+        schedule, // Include the schedule data (day, date, time slots) here
       });
-  
+    
       // Save the appointment to the database
       await newAppointment.save();
-  
+    
       // Ensure the doctorAppointments array exists in the staff document
       if (!staff.doctorAppointments) {
         staff.doctorAppointments = [];
       }
-  
+    
       // Add the appointment to the staff's `doctorAppointments[]` field
       staff.doctorAppointments.push({
         appointmentId: newAppointment._id,
         doctor: doctor._id,
-        appointment_date: appointmentDateTime,
         status: newAppointment.status,
         patient_name: newAppointment.patient_name,
         patient_relation: newAppointment.patient_relation,
         subtotal,
         total,
       });
-  
+    
       // Save updated staff details
       await staff.save();
-  
+    
       // Ensure the appointments array exists in the doctor document
       if (!doctor.appointments) {
         doctor.appointments = [];
       }
-  
+    
       // Add the appointment to the doctor's record (optional, depending on your use case)
       doctor.appointments.push({
         appointmentId: newAppointment._id,
         staff: staff._id,
-        appointment_date: appointmentDateTime,
         status: newAppointment.status,
         patient_name: newAppointment.patient_name,
         patient_relation: newAppointment.patient_relation,
       });
-  
+    
       await doctor.save();
-  
-      // 7. Respond with the appointment details including appointmentId, subtotal, and total
+    
+      // 7. Respond with the appointment details including appointmentId, subtotal, total, and schedule
       res.status(201).json({
         message: 'Appointment booked successfully',
         appointment: {
@@ -206,7 +197,6 @@ export const staffLogin = async (req, res) => {
           doctor_name: doctor.name,
           doctor_specialization: doctor.specialization,
           staff_name: staff.name,  // Added this line
-          appointment_date: appointmentDateTime,
           patient_name: newAppointment.patient_name,
           patient_relation: newAppointment.patient_relation,
           status: newAppointment.status,
@@ -220,7 +210,7 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
-
+  
 
 
   export const getAppointment = async (req, res) => {

@@ -1182,6 +1182,17 @@ export const getPrescription = async (req, res) => {
       : bookings;
 
     const bookingDetails = filteredBookings.map(booking => {
+      const prescriptionPdfFileName = `prescription-${booking._id}.pdf`;
+      const prescriptionPdfFilePath = path.join(pdfsDirectory, prescriptionPdfFileName);
+      const prescriptionPdfUrl = `/pdfs/${prescriptionPdfFileName}`;
+
+      // Check if the booking should have a prescription and generate the PDF
+      const hasPrescription = booking.status === 'accepted' || booking.status === 'rejected';
+
+      if (hasPrescription) {
+        generateStaffPrescriptionPDF(booking, prescriptionPdfFilePath);  // Assuming you have a function to generate PDF
+      }
+
       return {
         bookingId: booking._id,
         patient_name: booking.patient_name,
@@ -1205,20 +1216,13 @@ export const getPrescription = async (req, res) => {
         gst_on_consultation: booking.gst_on_consultation,
         total: booking.total,
         status: booking.status,
+        prescriptionPdfUrl: hasPrescription ? prescriptionPdfUrl : null,  // Add prescription URL only if it exists
       };
     });
-
-    // 👇 Prescription PDF generate karo
-    const prescriptionPdfFileName = `prescription-${staff._id}.pdf`;
-    const prescriptionPdfFilePath = path.join(pdfsDirectory, prescriptionPdfFileName);
-    const prescriptionPdfUrl = `/pdfs/${prescriptionPdfFileName}`;
-
-    generateStaffPrescriptionPDF(staff, prescriptionPdfFilePath);
 
     res.status(200).json({
       message: 'Bookings and prescriptions fetched successfully',
       bookings: bookingDetails,
-      prescriptionPdfUrl,
     });
 
   } catch (error) {
@@ -1226,6 +1230,7 @@ export const getPrescription = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 

@@ -840,27 +840,28 @@ export const getDiagnosticById = async (req, res) => {
 };
 
 
-// Get all Tests from a Specific Diagnostic Center by diagnosticId
+// Get all Tests and Packages from a Specific Diagnostic Center by diagnosticId
 export const getAllTests = async (req, res) => {
-    try {
-        const { diagnosticId } = req.params; // Extract diagnosticId from the URL params
+  try {
+      const { diagnosticId } = req.params; // Extract diagnosticId from the URL params
 
-        // Fetch the diagnostic center by its ID
-        const diagnostic = await Diagnostic.findById(diagnosticId);
+      // Fetch the diagnostic center by its ID
+      const diagnostic = await Diagnostic.findById(diagnosticId);
 
-        if (!diagnostic) {
-            return res.status(404).json({ message: 'Diagnostic center not found' });
-        }
+      if (!diagnostic) {
+          return res.status(404).json({ message: 'Diagnostic center not found' });
+      }
 
-        // Return the tests associated with this specific diagnostic center
-        res.status(200).json({
-            message: 'Tests retrieved successfully',
-            tests: diagnostic.tests
-        });
-    } catch (error) {
-        console.error('Error fetching tests:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+      // Return the tests and packages associated with this specific diagnostic center
+      res.status(200).json({
+          message: 'Tests and packages retrieved successfully',
+          tests: diagnostic.tests, // The array of tests directly under the diagnostic center
+          packages: diagnostic.packages // The array of packages associated with the diagnostic center
+      });
+  } catch (error) {
+      console.error('Error fetching tests and packages:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 

@@ -10,6 +10,7 @@ import connectDatabase from './db/connectDatabase.js';
 import bookingRoutes from './Routes/bookingRotes.js';
 import adminRoutes from './Routes/AdminRoute.js';
 import staffRoutes from './Routes/StaffRoute.js';
+import DoctorRoute from './Routes/DoctorRoute.js'
 
 dotenv.config();
 
@@ -20,6 +21,8 @@ const app = express();
 
 // ✅ Serve static files from /uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
+
 
 // ✅ CORS Configuration
 app.use(cors({
@@ -39,6 +42,8 @@ connectDatabase();
 app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/booking', bookingRoutes);
+app.use('/api/doctor', DoctorRoute);
+
 
 // ✅ Test Route
 app.get("/", (req, res) => {

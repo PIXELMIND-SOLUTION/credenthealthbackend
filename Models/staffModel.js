@@ -113,6 +113,33 @@ const staffSchema = new mongoose.Schema({
       },
     },
   ],
+ myPackage: [
+  {
+    diagnosticId: { type: mongoose.Schema.Types.ObjectId, ref: "Diagnostic" },
+    packageId: { type: mongoose.Schema.Types.ObjectId },
+    packageName: String,
+    price: Number,
+    offerPrice: Number,
+    tests: [
+      {
+        testName: String,
+        description: String,
+        image: String,
+        testId: { type: mongoose.Schema.Types.ObjectId } // Test ka _id bhi store kr rahe hain
+      }
+    ]
+  }
+],
+
+   // 👇 Add Prescription field
+   prescription: [
+    {
+      medicineName: { type: String },
+      dosage: { type: String },
+      instructions: { type: String },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
   family_members: [
     {
       fullName: { type: String },

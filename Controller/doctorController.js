@@ -1,4 +1,6 @@
 import Doctor from '../Models/doctorModel.js';
+import Staff from '../Models/staffModel.js';
+import Appointment from '../Models/Appointment.js';
 
 export const createDoctor = async (req, res) => {
   try {
@@ -109,5 +111,42 @@ export const updateDoctorDetails = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+
+
+export const createPrescription = async (req, res) => {
+  try {
+    const { doctorId, appointmentId } = req.params;
+    const { prescriptionDetails } = req.body;
+
+    if (!doctorId || !appointmentId || !prescriptionDetails) {
+      return res.status(400).json({ message: 'doctorId, appointmentId, and prescriptionDetails are required' });
+    }
+
+    // Step 1: Find Appointment
+    const appointment = await Appointment.findById(appointmentId).populate('staff');
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Step 3: Add prescription to staff
+    appointment.staff.prescription.push({
+      ...prescriptionDetails,
+      createdAt: new Date()
+    });
+    await appointment.staff.save();
+
+    res.status(200).json({
+      message: 'Prescription added successfully',
+      prescription: appointment.staff.prescription,
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating prescription:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

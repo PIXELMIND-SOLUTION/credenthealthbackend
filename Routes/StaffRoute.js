@@ -20,7 +20,10 @@ import { getWalletBalance,
   getDoctorAppointmentsForStaff,
   getAllDiagnosticBookingForStaff,
   getStaffTestPackageById,
-  getAppointment
+  getAppointment,
+  getPrescription,
+  addDiagnosticTestsToStaff,
+  getStaffPackages
 
  } from '../Controller/ControllerStaff.js';
 
@@ -65,6 +68,12 @@ router.put('/updateissue/:staffId/:issueId', updateIssueStatus);
 router.get('/getdoctorappointment/:staffId', getDoctorAppointmentsForStaff);  // update existing
 router.get('/getalldiagbookings/:staffId', getAllDiagnosticBookingForStaff);  // update existing
 router.get('/stafftestpackages/:staffId', getStaffTestPackageById);
+router.get('/getPrescription/:staffId', getPrescription);
+router.post('/addpackages', addDiagnosticTestsToStaff);
+router.get('/getpackages/:staffId', getStaffPackages);
+
+
+
 
 
 

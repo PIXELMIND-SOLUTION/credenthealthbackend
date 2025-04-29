@@ -9,7 +9,8 @@ import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { uploadSupportFile } from "../config/multerConfig.js";
 import Booking from "../Models/bookingModel.js";
-
+import PDFDocument from 'pdfkit';
+import Diagnostic from "../Models/diagnosticModel.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1112,6 +1113,188 @@ export const getStaffTestPackageById = async (req, res) => {
     res.status(500).json({ message: 'Server error while fetching test packages.' });
   }
 };
+
+
+
+const pdfsDirectory = path.join(process.cwd(), 'pdfs');
+
+// Ensure PDF directory exists
+if (!fs.existsSync(pdfsDirectory)) {
+  fs.mkdirSync(pdfsDirectory);
+}
+
+// Function to generate a PDF for Staff's prescriptions
+const generateStaffPrescriptionPDF = (staff, filePath) => {
+  try {
+    const doc = new PDFDocument();
+    doc.pipe(fs.createWriteStream(filePath));
+
+    doc.fontSize(20).text(`Doctor: ${staff.name}`, { underline: true });
+    doc.moveDown();
+
+    if (staff.prescription?.length) {
+      doc.fontSize(16).text('Prescriptions:', { underline: true });
+      staff.prescription.forEach((pres, index) => {
+        doc.moveDown(0.5);
+        doc.text(`${index + 1}. ${pres.medicineName || 'Medicine'} - ${pres.dosage || ''}`);
+        doc.text(`   Instructions: ${pres.instructions || 'N/A'}`);
+        doc.text(`   Date: ${pres.createdAt ? new Date(pres.createdAt).toLocaleDateString() : 'N/A'}`);
+      });
+    } else {
+      doc.text('No prescriptions available.');
+    }
+
+    doc.end();
+    console.log(`✅ PDF generated for doctorId: ${staff._id}`);
+  } catch (error) {
+    console.error('❌ Error generating Prescription PDF:', error);
+  }
+};
+
+export const getPrescription = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { status } = req.body;
+
+    console.log(`🔎 Fetching staff details for staffId: ${staffId}`);
+
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    console.log(`🔎 Fetching bookings for staffId: ${staffId}`);
+
+    const bookings = await Booking.find({ staff: staffId })
+      .populate('staff')
+      .populate('diagnostic')
+      .populate({
+        path: 'diagnostic.tests',
+        select: 'test_name price offerPrice description image',
+      });
+
+    if (!bookings.length) {
+      return res.status(404).json({ message: 'No bookings found for this staff member' });
+    }
+
+    const filteredBookings = status
+      ? bookings.filter(booking => booking.status === status)
+      : bookings;
+
+    const bookingDetails = filteredBookings.map(booking => {
+      return {
+        bookingId: booking._id,
+        patient_name: booking.patient_name,
+        patient_age: booking.age,
+        patient_gender: booking.gender,
+        staff_name: booking.staff?.name || 'N/A',
+        diagnostic_name: booking.diagnostic?.name || 'N/A',
+        diagnostic_image: booking.diagnostic?.image || '',
+        diagnostic_address: booking.diagnostic?.address || '',
+        consultation_fee: booking.consultation_fee ?? 0,
+        tests: booking.diagnostic?.tests?.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice ?? test.price,
+          description: test.description,
+          image: test.image,
+        })) || [],
+        appointment_date: booking.appointment_date,
+        subtotal: booking.subtotal,
+        gst_on_tests: booking.gst_on_tests,
+        gst_on_consultation: booking.gst_on_consultation,
+        total: booking.total,
+        status: booking.status,
+      };
+    });
+
+    // 👇 Prescription PDF generate karo
+    const prescriptionPdfFileName = `prescription-${staff._id}.pdf`;
+    const prescriptionPdfFilePath = path.join(pdfsDirectory, prescriptionPdfFileName);
+    const prescriptionPdfUrl = `/pdfs/${prescriptionPdfFileName}`;
+
+    generateStaffPrescriptionPDF(staff, prescriptionPdfFilePath);
+
+    res.status(200).json({
+      message: 'Bookings and prescriptions fetched successfully',
+      bookings: bookingDetails,
+      prescriptionPdfUrl,
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching bookings for staff:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const addDiagnosticTestsToStaff = async (req, res) => {
+  const { staffId, diagnosticId, packageId } = req.body;
+
+  // Find staff
+  const staff = await Staff.findById(staffId);
+  if (!staff) return res.status(404).json({ message: "Staff not found" });
+
+  // Find diagnostic and package
+  const diagnostic = await Diagnostic.findById(diagnosticId);
+  if (!diagnostic) return res.status(404).json({ message: "Diagnostic not found" });
+
+  const selectedPackage = diagnostic.packages.id(packageId);
+  if (!selectedPackage) return res.status(404).json({ message: "Package not found" });
+
+  // Map tests
+  const tests = selectedPackage.tests.map(test => ({
+    testId: test._id,
+    testName: test.test_name,
+    description: test.description,
+    image: test.image
+  }));
+
+  // Push into myPackage
+  staff.myPackage.push({
+    diagnosticId,
+    packageId,
+    packageName: selectedPackage.packageName,
+    price: selectedPackage.price,
+    offerPrice: selectedPackage.offerPrice,
+    tests
+  });
+
+  await staff.save();
+
+  res.status(200).json({ message: "Package added to staff successfully", staff });
+};
+
+
+
+export const getStaffPackages = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    if (!staffId) {
+      return res.status(400).json({ message: "staffId is required in params." });
+    }
+
+    // Staff find karo aur sirf myPackage fetch karo
+    const staff = await Staff.findById(staffId).select("name myPackage");
+
+    if (!staff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    return res.status(200).json({
+      message: "Staff packages fetched successfully",
+      data: staff
+    });
+
+  } catch (error) {
+    console.error("Error fetching staff packages:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+
 
 
 

@@ -37,6 +37,30 @@ const diagnosticSchema = new mongoose.Schema({
     }
   ],
 
+   // Direct tests (optional)
+   tests: [
+    {
+      test_name: { type: String },
+      description: { type: String },
+      image: { type: String }
+    }
+  ],
+  // Direct packages with tests inside
+  packages: [
+    {
+      packageName: { type: String },
+      price: { type: Number },
+      offerPrice: { type: Number, default: function() { return this.price; } },
+      tests: [
+        {
+          test_name: { type: String },
+          description: { type: String },
+          image: { type: String }
+        }
+      ]
+    }
+  ],
+
   // Docs & password
   documents: [{ type: String }],
   password: { type: String },

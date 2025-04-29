@@ -452,113 +452,218 @@ export const deleteStaffProfile = async (req, res) => {
 //book a diagnostics
 
 
+// export const createDiagnosticDetails = async (req, res) => {
+//   try {
+//     // 🧪 Step 1: Upload test images
+//     uploadTestImages(req, res, async (testImageError) => {
+//       if (testImageError) {
+//         console.log("❌ Test image upload failed:", testImageError);
+//         return res.status(400).json({ message: "Test image upload failed", error: testImageError.message });
+//       }
+
+//       try {
+//         // ✅ Log incoming form data and files
+//         console.log("📥 req.body:", req.body);  // Log the entire form data
+//         console.log("📁 req.files:", req.files);  // Log uploaded files
+
+//         // Parse individual fields from the flat req.body
+//         const {
+//           name,
+//           image,
+//           address,
+//           centerType,
+//           email,
+//           phone,
+//           gstNumber,
+//           centerStrength,
+//           country,
+//           state,
+//           city,
+//           pincode,
+//           password,
+//         } = req.body;
+
+//         // Parse contact persons and tests from flat fields in req.body
+//         const contactPersons = [];
+//         const tests = [];
+
+//         // Loop through the flat fields to extract contactPersons and tests
+//         Object.keys(req.body).forEach((key) => {
+//           if (key.startsWith("contactPersons")) {
+//             const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'contactPersons[0].name')
+//             const field = key.split(".")[1]; // Extract field name (e.g., 'name', 'designation')
+
+//             if (!contactPersons[index]) {
+//               contactPersons[index] = {}; // Initialize contact person object if not already created
+//             }
+//             contactPersons[index][field] = req.body[key]; // Add the field to the respective contact person object
+//           }
+
+//           if (key.startsWith("tests")) {
+//             const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'tests[0].test_name')
+//             const field = key.split(".")[1]; // Extract field name (e.g., 'test_name', 'description')
+
+//             if (!tests[index]) {
+//               tests[index] = {}; // Initialize test object if not already created
+//             }
+//             tests[index][field] = req.body[key]; // Add the field to the respective test object
+//           }
+//         });
+
+//         // 🧪 Attach uploaded test images to the tests
+//         if (req.file) {
+//           tests.forEach((test, index) => {
+//             test.image = req.file.path || null; // Attach image path if file exists
+//           });
+//         }
+
+//         console.log("Contact Persons:", contactPersons);
+//         console.log("Tests:", tests);
+
+//         // 🏥 Create Diagnostic center object
+//         const newDiagnostic = new Diagnostic({
+//           name,
+//           image,  // Assuming this is the company image or other image field
+//           address,
+//           centerType,
+//           email,
+//           phone,
+//           gstNumber,
+//           centerStrength,
+//           country,
+//           state,
+//           city,
+//           pincode,
+//           contactPersons: contactPersons || [], // Ensure it's an array
+//           password,
+//           tests: tests || [], // Ensure it's an array
+//           testImages: req.files ? req.files.map((file) => file.path) : [], // Save test image path if present
+//         });
+
+//         await newDiagnostic.save();
+
+//         console.log("✅ Diagnostic center saved:", newDiagnostic);
+
+//         res.status(201).json({
+//           message: "Diagnostic center created successfully",
+//           diagnostic: newDiagnostic,
+//         });
+//       } catch (err) {
+//         console.error("💥 Error while processing form data:", err);
+//         res.status(500).json({ message: "Server error", error: err.message });
+//       }
+//     });
+//   } catch (error) {
+//     console.error("🔥 Unexpected error:", error);
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
+
+
+// Create Diagnostic Center function
 export const createDiagnosticDetails = async (req, res) => {
   try {
-    // 🧪 Step 1: Upload test images
-    uploadTestImages(req, res, async (testImageError) => {
-      if (testImageError) {
-        console.log("❌ Test image upload failed:", testImageError);
-        return res.status(400).json({ message: "Test image upload failed", error: testImageError.message });
-      }
+    // Incoming JSON data logging
+    console.log("📥 Incoming JSON data:", req.body);
 
-      try {
-        // ✅ Log incoming form data and files
-        console.log("📥 req.body:", req.body);  // Log the entire form data
-        console.log("📁 req.files:", req.files);  // Log uploaded files
+    // Extract data directly from req.body
+    const {
+      name,
+      image,
+      address,
+      centerType,
+      email,
+      phone,
+      gstNumber,
+      centerStrength,
+      country,
+      state,
+      city,
+      pincode,
+      password,
+      contactPersons,
+      tests,
+      packages
+    } = req.body;
 
-        // Parse individual fields from the flat req.body
-        const {
-          name,
-          image,
-          address,
-          centerType,
-          email,
-          phone,
-          gstNumber,
-          centerStrength,
-          country,
-          state,
-          city,
-          pincode,
-          password,
-        } = req.body;
-
-        // Parse contact persons and tests from flat fields in req.body
-        const contactPersons = [];
-        const tests = [];
-
-        // Loop through the flat fields to extract contactPersons and tests
-        Object.keys(req.body).forEach((key) => {
-          if (key.startsWith("contactPersons")) {
-            const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'contactPersons[0].name')
-            const field = key.split(".")[1]; // Extract field name (e.g., 'name', 'designation')
-
-            if (!contactPersons[index]) {
-              contactPersons[index] = {}; // Initialize contact person object if not already created
-            }
-            contactPersons[index][field] = req.body[key]; // Add the field to the respective contact person object
-          }
-
-          if (key.startsWith("tests")) {
-            const index = key.match(/\d+/)[0]; // Extract index (e.g., '0' from 'tests[0].test_name')
-            const field = key.split(".")[1]; // Extract field name (e.g., 'test_name', 'description')
-
-            if (!tests[index]) {
-              tests[index] = {}; // Initialize test object if not already created
-            }
-            tests[index][field] = req.body[key]; // Add the field to the respective test object
-          }
-        });
-
-        // 🧪 Attach uploaded test images to the tests
-        if (req.file) {
-          tests.forEach((test, index) => {
-            test.image = req.file.path || null; // Attach image path if file exists
-          });
-        }
-
-        console.log("Contact Persons:", contactPersons);
-        console.log("Tests:", tests);
-
-        // 🏥 Create Diagnostic center object
-        const newDiagnostic = new Diagnostic({
-          name,
-          image,  // Assuming this is the company image or other image field
-          address,
-          centerType,
-          email,
-          phone,
-          gstNumber,
-          centerStrength,
-          country,
-          state,
-          city,
-          pincode,
-          contactPersons: contactPersons || [], // Ensure it's an array
-          password,
-          tests: tests || [], // Ensure it's an array
-          testImages: req.files ? req.files.map((file) => file.path) : [], // Save test image path if present
-        });
-
-        await newDiagnostic.save();
-
-        console.log("✅ Diagnostic center saved:", newDiagnostic);
-
-        res.status(201).json({
-          message: "Diagnostic center created successfully",
-          diagnostic: newDiagnostic,
-        });
-      } catch (err) {
-        console.error("💥 Error while processing form data:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
-      }
+    // 🧪 Create the Diagnostic center object
+    const newDiagnostic = new Diagnostic({
+      name,
+      image,
+      address,
+      centerType,
+      email,
+      phone,
+      gstNumber,
+      centerStrength,
+      country,
+      state,
+      city,
+      pincode,
+      password,
+      contactPersons: contactPersons || [],
+      tests: tests || [],
+      packages: packages || [],
+      documents: req.files ? req.files.map((file) => file.path) : [],
     });
+
+    // Save the new diagnostic center to the database
+    await newDiagnostic.save();
+
+    console.log("✅ Diagnostic center created successfully:", newDiagnostic);
+
+    res.status(201).json({
+      message: "Diagnostic center created successfully",
+      diagnostic: newDiagnostic,
+    });
+
   } catch (error) {
-    console.error("🔥 Unexpected error:", error);
+    console.error("🔥 Error while creating diagnostic center:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
+// Assign Diagnostic and Package to Staff function
+export const assignDiagnosticAndPackageToStaff = async (req, res) => {
+  const { staffId, diagnosticId, packageId } = req.body;  // Staff ID, Diagnostic Center ID, Package ID from request body
+
+  try {
+    // Find the staff by ID
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    // Check if the diagnostic center exists
+    const diagnosticCenter = await Diagnostic.findById(diagnosticId);
+    if (!diagnosticCenter) {
+      return res.status(404).json({ message: "Diagnostic center not found" });
+    }
+
+    // Check if the package exists
+    const packageExists = await Package.findById(packageId);
+    if (!packageExists) {
+      return res.status(404).json({ message: "Package not found" });
+    }
+
+    // Assign the diagnostic center and package to the staff
+    staff.diagnosticId = diagnosticId;
+    staff.packageId = packageId;
+
+    // Save the staff data with the updated assignment
+    await staff.save();
+
+    res.status(200).json({
+      message: "Diagnostic center and package assigned successfully to staff",
+      staff,
+    });
+  } catch (error) {
+    console.error("Error assigning diagnostic center and package to staff:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 
 export const updateDiagnosticDetails = async (req, res) => {

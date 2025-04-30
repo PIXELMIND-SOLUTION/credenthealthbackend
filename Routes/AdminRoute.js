@@ -52,7 +52,9 @@ import { signupAdmin,
     deleteDiagnosticCenter,
     deleteBookingById,
     getDashboardCounts,
-    addTestsToStaffByAgeGroup
+    addTestsToStaffByAgeGroup,
+    submitSection, 
+    getAssessment
  } from '../Controller/ControllerAdmin.js';
  import multer from 'multer';
  const upload = multer({ dest: 'uploads/' });
@@ -179,6 +181,14 @@ router.post('/import-staffs', upload.single('file'), importStaffFromExcel);
 
 router.get('/getdashboardcount', getDashboardCounts);
 router.post('/add-tests', addTestsToStaffByAgeGroup);
+
+
+// Route to submit a section or multiple sections
+router.post('/submit-section', submitSection);
+
+// Route to get the entire health assessment
+router.get('/get-assessment', getAssessment);
+
 
 
 

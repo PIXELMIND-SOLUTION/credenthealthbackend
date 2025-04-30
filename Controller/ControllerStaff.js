@@ -1281,20 +1281,22 @@ export const getStaffPackages = async (req, res) => {
       return res.status(400).json({ message: "staffId is required in params." });
     }
 
-    // Staff find karo aur sirf myPackage fetch karo
-    const staff = await Staff.findById(staffId).select("name myPackage");
+    // Staff find karo aur myPackage aur myTest fetch karo
+    const staff = await Staff.findById(staffId)
+      .select("name myPackage myTest")  // Fetch both myPackage and myTest
+      .populate('myTest')  // Populate myTest array (if it's a reference to another collection)
 
     if (!staff) {
       return res.status(404).json({ message: "Staff not found" });
     }
 
     return res.status(200).json({
-      message: "Staff packages fetched successfully",
+      message: "Staff packages and tests fetched successfully",
       data: staff
     });
 
   } catch (error) {
-    console.error("Error fetching staff packages:", error);
+    console.error("Error fetching staff packages and tests:", error);
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };

@@ -9,6 +9,7 @@ import Appointment from '../Models/Appointment.js';
 import Company from '../Models/companyModel.js';
 import mongoose from 'mongoose';
 import Category from '../Models/Category.js';
+import HealthAssessment from '../Models/HealthAssessment.js';
 import XLSX from 'xlsx';
 import fs from 'fs';
 
@@ -2557,6 +2558,64 @@ export const addTestsToStaffByAgeGroup = async (req, res) => {
   } catch (error) {
     console.error('Error adding tests to staff:', error);
     res.status(500).json({ message: 'Server error while adding tests to staff.' });
+  }
+};
+
+
+
+export const submitSection = async (req, res) => {
+  try {
+    const { sectionName, questions } = req.body;
+
+    const sectionId = new mongoose.Types.ObjectId();
+    const formattedQuestions = questions.map(q => ({
+      questionId: new mongoose.Types.ObjectId(),
+      question: q.question,
+      options: q.options
+    }));
+
+    let healthAssessment = await HealthAssessment.findOne();
+
+    if (!healthAssessment) {
+      healthAssessment = new HealthAssessment({
+        sections: [{ sectionId, sectionName, questions: formattedQuestions }]
+      });
+    } else {
+      healthAssessment.sections.push({ sectionId, sectionName, questions: formattedQuestions });
+    }
+
+    await healthAssessment.save();
+
+    res.status(200).json({
+      message: 'Section added successfully',
+      data: {
+        sectionId,
+        questions: formattedQuestions.map(q => ({
+          questionId: q.questionId,
+          question: q.question,
+          options: q.options
+        }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding section', error: error.message });
+  }
+};
+
+
+
+// GET method to fetch the entire health assessment
+export const getAssessment = async (req, res) => {
+  try {
+    const healthAssessment = await HealthAssessment.findOne();
+
+    if (!healthAssessment) {
+      return res.status(404).json({ message: "No assessment found" });
+    }
+
+    res.status(200).json({ data: healthAssessment });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching assessment", error: error.message });
   }
 };
   

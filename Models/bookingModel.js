@@ -20,6 +20,9 @@ const bookingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Test',
   }],
+  packageId: { // ✅ New field to track which package was used
+    type: mongoose.Schema.Types.ObjectId,
+  },
   subtotal: {
     type: Number,
   },

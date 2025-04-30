@@ -70,7 +70,7 @@ router.get('/getalldiagbookings/:staffId', getAllDiagnosticBookingForStaff);  //
 router.get('/stafftestpackages/:staffId', getStaffTestPackageById);
 router.get('/getPrescription/:staffId', getPrescription);
 router.post('/addpackages', addDiagnosticTestsToStaff);
-router.get('/getpackages/:staffId', getStaffPackages);
+router.get('/getpackage-test/:staffId', getStaffPackages);
 
 
 

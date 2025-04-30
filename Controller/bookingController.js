@@ -164,6 +164,7 @@ export const bookAppointment = async (req, res) => {
     let testDetails = [];
     let subtotal = 0;
     let packageUsed = null;
+    let packageName = null; // Variable to store the package name
 
     // 3. Handle package booking
     if (packageId) {
@@ -176,6 +177,7 @@ export const bookAppointment = async (req, res) => {
       testDetails = selectedPackage.tests;
       subtotal = selectedPackage.offerPrice || selectedPackage.price || 0;
       packageUsed = selectedPackage._id;
+      packageName = selectedPackage.packageName; // Get the package name
     }
 
     // 4. Handle test-based booking
@@ -239,6 +241,7 @@ export const bookAppointment = async (req, res) => {
         diagnostic_address: diagnostic.address,
         consultation_fee: consultationFee,
         packageId: packageUsed, // ✅ Save packageId if used
+        packageName: packageName, // Include packageName in the response
         tests: testDetails.map(test => ({
           testId: test._id,
           test_name: test.test_name,
@@ -263,6 +266,7 @@ export const bookAppointment = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 

@@ -208,50 +208,43 @@ export const staffLogin = async (req, res) => {
 
   export const getAppointment = async (req, res) => {
     try {
-      const { staffId, appointmentId } = req.params;  // Get staffId and appointmentId from route parameters
+      const { staffId, appointmentId } = req.params;
   
-      // 1. Check if staffId is provided
       if (!staffId) {
         return res.status(400).json({ message: 'Staff ID is required' });
       }
   
-      // 2. Find the staff by staffId
       const staff = await Staff.findById(staffId);
       if (!staff) {
         return res.status(404).json({ message: 'Staff not found' });
       }
   
-      // 3. Check if appointmentId is provided
       if (!appointmentId) {
         return res.status(400).json({ message: 'Appointment ID is required' });
       }
   
-      // 4. Find the appointment by appointmentId
       const appointment = await Appointment.findById(appointmentId);
       if (!appointment) {
         return res.status(404).json({ message: 'Appointment not found' });
       }
   
-      // 5. Check if the appointment belongs to the staff
       if (appointment.staff.toString() !== staff._id.toString()) {
         return res.status(403).json({ message: 'This appointment does not belong to the specified staff' });
       }
   
-      // 6. Retrieve the doctor details
       const doctor = await Doctor.findById(appointment.doctor);
       if (!doctor) {
         return res.status(404).json({ message: 'Doctor not found' });
       }
   
-      // 7. Return the appointment details in the response
       res.status(200).json({
         message: 'Appointment details retrieved successfully',
         appointment: {
           appointmentId: appointment._id,
-          doctor_name: doctor.name,
-          doctor_specialization: doctor.specialization,
+          doctor_details: doctor,  // sending full doctor object
           staff_name: staff.name,
           appointment_date: appointment.appointment_date,
+          appointment_time: appointment.appointment_time,
           patient_name: appointment.patient_name,
           patient_relation: appointment.patient_relation,
           status: appointment.status,
@@ -264,6 +257,7 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
   
   
@@ -951,8 +945,31 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
 
     // Filter by status if it is provided in the request body
     const filteredAppointments = status
-      ? staff.doctorAppointments.filter((appointment) => appointment.status === status)
+      ? staff.doctorAppointments.filter((appointment) => appointment.appointmentId?.status === status)
       : staff.doctorAppointments;
+
+    // Safeguard: Check for null or undefined doctor or appointmentId before mapping
+    const appointments = filteredAppointments.map((appointment) => {
+      if (!appointment.appointmentId || !appointment.doctor) {
+        return null; // Skip invalid entries
+      }
+
+      return {
+        appointmentId: appointment.appointmentId._id,
+        doctor_name: appointment.doctor.name,
+        doctor_specialization: appointment.doctor.specialization,
+        doctor_image: appointment.doctor.image,
+        appointment_date: appointment.appointmentId.appointment_date,
+        appointment_time: appointment.appointmentId.appointment_time,
+        status: appointment.appointmentId.status,
+        patient_name: appointment.appointmentId.patient_name,
+        patient_relation: appointment.appointmentId.patient_relation,
+        subtotal: appointment.appointmentId.subtotal,
+        total: appointment.appointmentId.total,
+        payment_status: appointment.appointmentId.payment_status,
+        schedule: appointment.appointmentId.schedule,
+      };
+    }).filter(Boolean); // Filter out null entries if any invalid appointment is found
 
     // Returning the staff details and their doctor appointments along with doctor details and schedule
     res.status(200).json({
@@ -968,21 +985,7 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
         address: staff.address,
         myBookings: staff.myBookings,
       },
-      appointments: filteredAppointments.map((appointment) => ({
-        appointmentId: appointment.appointmentId._id,
-        doctor_name: appointment.doctor.name,
-        doctor_specialization: appointment.doctor.specialization,
-        doctor_image: appointment.doctor.image,
-        appointment_date: appointment.appointmentId.appointment_date, // Adding the appointment_date from the appointment
-        appointment_time: appointment.appointmentId.appointment_time, // Adding the appointment_date from the appointment
-        status: appointment.appointmentId.status,
-        patient_name: appointment.appointmentId.patient_name,
-        patient_relation: appointment.appointmentId.patient_relation,
-        subtotal: appointment.appointmentId.subtotal,
-        total: appointment.appointmentId.total,
-        payment_status: appointment.appointmentId.payment_status,
-        schedule: appointment.appointmentId.schedule, // Adding schedule from the appointment
-      })),
+      appointments: appointments, // Only include valid appointments
     });
   } catch (error) {
     console.error('Error fetching doctor appointments:', error);

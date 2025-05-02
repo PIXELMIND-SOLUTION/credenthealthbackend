@@ -145,8 +145,8 @@ export const staffLogin = async (req, res) => {
         patient_relation: patient_relation || 'Self',
         subtotal,
         total,
-        appointment_date,   // 👈 simple date
-        appointment_time,   // 👈 simple time
+        appointment_date,
+        appointment_time,
       });
   
       await newAppointment.save();
@@ -185,16 +185,15 @@ export const staffLogin = async (req, res) => {
         message: 'Appointment booked successfully',
         appointment: {
           appointmentId: newAppointment._id,
-          doctor_name: doctor.name,
-          doctor_specialization: doctor.specialization,
-          staff_name: staff.name,
+          doctor_details: doctor,           // full doctor object
+          staff_details: staff,             // full staff object
           patient_name: newAppointment.patient_name,
           patient_relation: newAppointment.patient_relation,
           status: newAppointment.status,
           subtotal,
           total,
-          appointment_date: newAppointment.appointment_date,  // 👈 returning date
-          appointment_time: newAppointment.appointment_time,  // 👈 returning time
+          appointment_date: newAppointment.appointment_date,
+          appointment_time: newAppointment.appointment_time,
         },
       });
     } catch (error) {
@@ -202,6 +201,7 @@ export const staffLogin = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
   
 

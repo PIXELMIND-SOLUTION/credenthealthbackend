@@ -1372,7 +1372,6 @@ export const getDoctorAppointments = async (req, res) => {
 
 
 export const createCompany = (req, res) => {
-  // Call multer middleware manually to handle file uploads
   uploadCompanyAssets(req, res, async (err) => {
     if (err) {
       console.error('File upload error:', err);
@@ -1396,27 +1395,49 @@ export const createCompany = (req, res) => {
         state,
         city,
         pincode,
+        password,
+        diagnostic,
         contactPerson,
-        password, // Password field
-        diagnostic, // This will be an array of diagnostic _ids sent from the frontend
       } = req.body;
 
-      // 🔍 Parse diagnostic array from frontend if sent as stringified JSON
+      // ✅ Parse and validate diagnostic IDs
       const diagnosticIds = typeof diagnostic === 'string' ? JSON.parse(diagnostic) : diagnostic;
+      const filteredDiagnosticIds = (diagnosticIds || []).filter(id => mongoose.Types.ObjectId.isValid(id));
 
-      // Check if all diagnostic _ids are valid
+      console.log("Received diagnostic IDs:", diagnosticIds);
+      console.log("Filtered valid diagnostic IDs:", filteredDiagnosticIds);
+
       const validDiagnostics = await Diagnostic.find({
-        '_id': { $in: diagnosticIds },
+        '_id': { $in: filteredDiagnosticIds },
       }).select('_id');
 
-      // 📂 Handle uploaded files
+      console.log("Valid diagnostics found:", validDiagnostics);
+
+      // ✅ Handle uploaded files
       const imageFile = req.files?.image?.[0]?.path || '';
       const documents = req.files?.documents?.map(doc => doc.path) || [];
 
-      // 🔄 Parse the contactPerson if sent as stringified JSON
-      const parsedContactPerson = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
+      // ✅ Parse and format contact persons
+      const parsedContactPersons = typeof contactPerson === 'string' ? JSON.parse(contactPerson) : contactPerson;
 
-      // 🧾 Create and save the company document
+      const formattedContactPersons = Array.isArray(parsedContactPersons)
+        ? parsedContactPersons.map(person => ({
+            name: person?.name,
+            designation: person?.designation,
+            gender: person?.gender,
+            email: person?.email,
+            phone: person?.phone,
+            address: {
+              country: person?.address?.country,
+              state: person?.address?.state,
+              city: person?.address?.city,
+              pincode: person?.address?.pincode,
+              street: person?.address?.street || 'Not Provided',
+            },
+          }))
+        : [];
+
+      // ✅ Create new company
       const newCompany = new Company({
         name,
         companyType,
@@ -1433,40 +1454,27 @@ export const createCompany = (req, res) => {
         state,
         city,
         pincode,
-        password,  // Store password directly
-        diagnostics: validDiagnostics.map(d => d._id),  // Store the array of diagnostic _ids
-        image: imageFile, // Store the uploaded image path
-        documents,  // Store the uploaded document paths
-        contactPerson: {
-          name: parsedContactPerson?.name,
-          designation: parsedContactPerson?.designation,
-          gender: parsedContactPerson?.gender,
-          email: parsedContactPerson?.email,
-          phone: parsedContactPerson?.phone,
-          address: {
-            country: parsedContactPerson?.address?.country,
-            state: parsedContactPerson?.address?.state,
-            city: parsedContactPerson?.address?.city,
-            pincode: parsedContactPerson?.address?.pincode,
-            street: parsedContactPerson?.address?.street || 'Not Provided',  // Default if not provided
-          },
-        },
+        password,
+        diagnostics: validDiagnostics.map(d => d._id),  // ✅ Use valid diagnostic IDs
+        image: imageFile,
+        documents,
+        contactPerson: formattedContactPersons,
       });
 
-      // Save the new company to DB
       const savedCompany = await newCompany.save();
 
-      // Respond with success message
       res.status(201).json({
         message: 'Company created successfully!',
         company: savedCompany,
       });
+
     } catch (error) {
       console.error('Error creating company:', error);
-      res.status(500).json({ message: 'Server error', error });
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
 };
+
 
 
 

@@ -12,6 +12,7 @@ import adminRoutes from './Routes/AdminRoute.js';
 import staffRoutes from './Routes/StaffRoute.js';
 import DoctorRoute from './Routes/DoctorRoute.js'
 
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +23,10 @@ const app = express();
 // ✅ Serve static files from /uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
+
+// Increase limit for JSON and URL-encoded data
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 
 // ✅ CORS Configuration

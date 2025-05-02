@@ -1126,13 +1126,20 @@ if (!fs.existsSync(pdfsDirectory)) {
   fs.mkdirSync(pdfsDirectory);
 }
 
-// Function to generate a PDF for Staff's prescriptions
-const generateStaffPrescriptionPDF = (staff, filePath) => {
+
+// Ensure PDF directory exists
+if (!fs.existsSync(pdfsDirectory)) {
+  fs.mkdirSync(pdfsDirectory, { recursive: true });
+}
+
+// PDF Generator
+const generateStaffPrescriptionPDF = (staff, doctor, filePath) => {
   try {
     const doc = new PDFDocument();
     doc.pipe(fs.createWriteStream(filePath));
 
-    doc.fontSize(20).text(`Doctor: ${staff.name}`, { underline: true });
+    doc.fontSize(20).text(`Staff: ${staff.name}`, { underline: true });
+    doc.fontSize(16).text(`Doctor: ${doctor.name}`, { underline: true });
     doc.moveDown();
 
     if (staff.prescription?.length) {
@@ -1148,88 +1155,76 @@ const generateStaffPrescriptionPDF = (staff, filePath) => {
     }
 
     doc.end();
-    console.log(`✅ PDF generated for doctorId: ${staff._id}`);
+    console.log(`✅ PDF generated for staffId: ${staff._id}`);
   } catch (error) {
-    console.error('❌ Error generating Prescription PDF:', error);
+    console.error('❌ Error generating PDF:', error);
   }
 };
 
+// Main controller
 export const getPrescription = async (req, res) => {
   try {
     const { staffId } = req.params;
     const { status } = req.body;
 
-    console.log(`🔎 Fetching staff details for staffId: ${staffId}`);
+    console.log(`🔍 Fetching appointments for staffId: ${staffId}`);
 
-    const staff = await Staff.findById(staffId);
-    if (!staff) {
-      return res.status(404).json({ message: 'Staff not found' });
-    }
-
-    console.log(`🔎 Fetching bookings for staffId: ${staffId}`);
-
-    const bookings = await Booking.find({ staff: staffId })
+    const appointments = await Appointment.find({ staff: staffId })
       .populate('staff')
-      .populate('diagnostic')
-      .populate({
-        path: 'diagnostic.tests',
-        select: 'test_name price offerPrice description image',
-      });
+      .populate('doctor'); // populate doctor info
 
-    if (!bookings.length) {
-      return res.status(404).json({ message: 'No bookings found for this staff member' });
+    if (!appointments.length) {
+      return res.status(404).json({ message: 'No appointments found for this staff member' });
     }
 
-    const filteredBookings = status
-      ? bookings.filter(booking => booking.status === status)
-      : bookings;
+    const filteredAppointments = status
+      ? appointments.filter(app => app.status === status)
+      : appointments;
 
-    const bookingDetails = filteredBookings.map(booking => {
-      const prescriptionPdfFileName = `prescription-${booking._id}.pdf`;
+    const appointmentDetails = filteredAppointments.map(app => {
+      const prescriptionPdfFileName = `prescription-${app._id}.pdf`;
       const prescriptionPdfFilePath = path.join(pdfsDirectory, prescriptionPdfFileName);
       const prescriptionPdfUrl = `/pdfs/${prescriptionPdfFileName}`;
 
-      // Check if the booking should have a prescription and generate the PDF
-      const hasPrescription = booking.status === 'accepted' || booking.status === 'rejected';
+      const hasPrescription = app.staff?.prescription?.length > 0;
 
       if (hasPrescription) {
-        generateStaffPrescriptionPDF(booking, prescriptionPdfFilePath);  // Assuming you have a function to generate PDF
+        generateStaffPrescriptionPDF(app.staff, app.doctor, prescriptionPdfFilePath);
       }
 
       return {
-        bookingId: booking._id,
-        patient_name: booking.patient_name,
-        patient_age: booking.age,
-        patient_gender: booking.gender,
-        staff_name: booking.staff?.name || 'N/A',
-        diagnostic_name: booking.diagnostic?.name || 'N/A',
-        diagnostic_image: booking.diagnostic?.image || '',
-        diagnostic_address: booking.diagnostic?.address || '',
-        consultation_fee: booking.consultation_fee ?? 0,
-        tests: booking.diagnostic?.tests?.map(test => ({
-          test_name: test.test_name,
-          price: test.price,
-          offerPrice: test.offerPrice ?? test.price,
-          description: test.description,
-          image: test.image,
-        })) || [],
-        appointment_date: booking.appointment_date,
-        subtotal: booking.subtotal,
-        gst_on_tests: booking.gst_on_tests,
-        gst_on_consultation: booking.gst_on_consultation,
-        total: booking.total,
-        status: booking.status,
-        prescriptionPdfUrl: hasPrescription ? prescriptionPdfUrl : null,  // Add prescription URL only if it exists
+        appointmentId: app._id,
+        appointment_date: app.appointment_date,
+        appointment_time: app.appointment_time,
+        patient_name: app.patient_name,
+        patient_relation: app.patient_relation,
+        status: app.status,
+        total: app.total,
+        payment_status: app.payment_status,
+        staff: {
+          id: app.staff?._id,
+          name: app.staff?.name,
+          email: app.staff?.email,
+          mobile: app.staff?.mobile,
+        },
+        doctor: {
+          id: app.doctor?._id,
+          name: app.doctor?.name,
+          specialization: app.doctor?.specialization,
+          email: app.doctor?.email,
+          mobile: app.doctor?.mobile,
+        },
+        prescriptionPdfUrl: hasPrescription ? prescriptionPdfUrl : null,
       };
     });
 
     res.status(200).json({
-      message: 'Bookings and prescriptions fetched successfully',
-      bookings: bookingDetails,
+      message: 'Appointments and prescriptions fetched successfully',
+      appointments: appointmentDetails,
     });
 
   } catch (error) {
-    console.error('❌ Error fetching bookings for staff:', error);
+    console.error('❌ Error fetching prescriptions:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -22,9 +22,9 @@ const companySchema = new mongoose.Schema(
     city: { type: String },
     pincode: { type: String },
 
-    // Contact Person Details
-    contactPerson: {
-      name: { type: String, },
+    // Multiple Contact Persons
+    contactPerson: [{
+      name: { type: String },
       designation: { type: String },
       gender: { type: String },
       email: { type: String },
@@ -36,7 +36,8 @@ const companySchema = new mongoose.Schema(
         pincode: { type: String },
         street: { type: String },
       },
-    },
+    }],
+
 
     staff: [{
       _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },

@@ -1,6 +1,7 @@
 import Doctor from '../Models/doctorModel.js';
 import Staff from '../Models/staffModel.js';
 import Appointment from '../Models/Appointment.js';
+import Blog from '../Models/Blog.js';
 
 export const createDoctor = async (req, res) => {
   try {
@@ -195,6 +196,8 @@ export const createBlog = async (req, res) => {
           id: doctor._id,
           name: doctor.name,
           specialization: doctor.specialization,
+          qualification: doctor.qualification,
+          image: doctor.image,
           email: doctor.email,
           mobile: doctor.mobile,
         },
@@ -203,6 +206,87 @@ export const createBlog = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error creating blog:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+export const getAllBlogs = async (req, res) => {
+  try {
+    const blogs = await Blog.find().populate('doctor');
+    
+    if (!blogs.length) {
+      return res.status(404).json({ message: 'No blogs found' });
+    }
+
+    // Format blog creation dates to human-readable format
+    const formattedBlogs = blogs.map(blog => {
+      return {
+        id: blog._id,
+        title: blog.title,
+        description: blog.description,
+        image: blog.image,
+        createdAt: new Date(blog.createdAt).toLocaleDateString(), // Human-readable format
+        doctor: {
+          id: blog.doctor._id,
+          name: blog.doctor.name,
+          specialization: blog.doctor.specialization,
+          qualification: blog.doctor.qualification,
+          image: blog.doctor.image,
+          email: blog.doctor.email,
+          mobile: blog.doctor.mobile,
+        },
+      };
+    });
+
+    res.status(200).json({
+      message: 'Blogs retrieved successfully',
+      blogs: formattedBlogs,
+    });
+    
+  } catch (error) {
+    console.error('❌ Error retrieving blogs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+export const getSingleBlog = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    const blog = await Blog.findById(blogId).populate('doctor');
+    
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    // Format creation date to human-readable format
+    const formattedBlog = {
+      id: blog._id,
+      title: blog.title,
+      description: blog.description,
+      image: blog.image,
+      createdAt: new Date(blog.createdAt).toLocaleDateString(), // Human-readable format
+      doctor: {
+        id: blog.doctor._id,
+        name: blog.doctor.name,
+        specialization: blog.doctor.specialization,
+        qualification: blog.doctor.qualification,
+        image: blog.doctor.image,
+        email: blog.doctor.email,
+        mobile: blog.doctor.mobile,
+      },
+    };
+
+    res.status(200).json({
+      message: 'Blog retrieved successfully',
+      blog: formattedBlog,
+    });
+    
+  } catch (error) {
+    console.error('❌ Error retrieving blog:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -20,6 +20,7 @@ schedule: [
       ],
     },
   ], // New field for schedule with time slots
+  myBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }], // Add this line
 }, { timestamps: true });
 
 const Doctor = mongoose.model('Doctor', doctorSchema);

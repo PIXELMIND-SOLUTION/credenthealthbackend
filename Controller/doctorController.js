@@ -213,42 +213,25 @@ export const createBlog = async (req, res) => {
 
 export const getAllBlogs = async (req, res) => {
   try {
+    // Fetch all blogs and populate doctor info
     const blogs = await Blog.find().populate('doctor');
-    
+
     if (!blogs.length) {
       return res.status(404).json({ message: 'No blogs found' });
     }
 
-    // Format blog creation dates to human-readable format
-    const formattedBlogs = blogs.map(blog => {
-      return {
-        id: blog._id,
-        title: blog.title,
-        description: blog.description,
-        image: blog.image,
-        createdAt: new Date(blog.createdAt).toLocaleDateString(), // Human-readable format
-        doctor: {
-          id: blog.doctor._id,
-          name: blog.doctor.name,
-          specialization: blog.doctor.specialization,
-          qualification: blog.doctor.qualification,
-          image: blog.doctor.image,
-          email: blog.doctor.email,
-          mobile: blog.doctor.mobile,
-        },
-      };
-    });
-
+    // Send raw blogs directly without formatting
     res.status(200).json({
       message: 'Blogs retrieved successfully',
-      blogs: formattedBlogs,
+      blogs, // directly sending the original documents
     });
-    
+
   } catch (error) {
     console.error('❌ Error retrieving blogs:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 

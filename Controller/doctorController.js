@@ -150,3 +150,59 @@ export const createPrescription = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+
+
+export const createBlog = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { title, description, image } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Title and description are required' });
+    }
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    const blog = new Blog({
+      title,
+      description,
+      image,
+      doctor: doctorId,
+    });
+
+    await blog.save();
+
+    // Push blog ID into doctor's myBlogs[] array
+    doctor.myBlogs.push(blog._id);
+    await doctor.save();
+
+    // Populate doctor info in blog response
+    await blog.populate('doctor');
+
+    res.status(201).json({
+      message: 'Blog created successfully',
+      blog: {
+        id: blog._id,
+        title: blog.title,
+        description: blog.description,
+        image: blog.image,
+        createdAt: blog.createdAt,
+        doctor: {
+          id: doctor._id,
+          name: doctor.name,
+          specialization: doctor.specialization,
+          email: doctor.email,
+          mobile: doctor.mobile,
+        },
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating blog:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

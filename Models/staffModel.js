@@ -140,6 +140,10 @@ const staffSchema = new mongoose.Schema({
       createdAt: { type: Date, default: Date.now }
     }
   ],
+  myBlogs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Blog'
+  }],
   family_members: [
     {
       fullName: { type: String },

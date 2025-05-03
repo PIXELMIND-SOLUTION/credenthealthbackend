@@ -23,7 +23,8 @@ import { getWalletBalance,
   getAppointment,
   getPrescription,
   addDiagnosticTestsToStaff,
-  getStaffPackages
+  getStaffPackages,
+  submitAnswer
 
  } from '../Controller/ControllerStaff.js';
 
@@ -71,6 +72,8 @@ router.get('/stafftestpackages/:staffId', getStaffTestPackageById);
 router.get('/getPrescription/:staffId', getPrescription);
 router.post('/addpackages', addDiagnosticTestsToStaff);
 router.get('/getpackage-test/:staffId', getStaffPackages);
+router.post('/submit-hra/:staffId', submitAnswer);
+
 
 
 

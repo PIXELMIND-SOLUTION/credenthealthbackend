@@ -187,7 +187,7 @@ router.post('/add-tests', addTestsToStaffByAgeGroup);
 router.post('/submit-section', submitSection);
 
 // Route to get the entire health assessment
-router.get('/get-assessment', getAssessment);
+router.get('/get-hra', getAssessment);
 
 
 

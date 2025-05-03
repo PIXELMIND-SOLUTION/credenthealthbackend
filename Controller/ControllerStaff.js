@@ -11,6 +11,7 @@ import { uploadSupportFile } from "../config/multerConfig.js";
 import Booking from "../Models/bookingModel.js";
 import PDFDocument from 'pdfkit';
 import Diagnostic from "../Models/diagnosticModel.js";
+import HealthAssessment from "../Models/HealthAssessment.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1301,6 +1302,66 @@ export const getStaffPackages = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
+
+
+export const submitAnswer = async (req, res) => {
+  try {
+    const { sectionId, questionId, selectedAnswer } = req.body;
+    const { staffId } = req.params; // staffId from URL
+
+    const healthAssessment = await HealthAssessment.findOne();
+
+    if (!healthAssessment) {
+      return res.status(404).json({ message: "No assessment found" });
+    }
+
+    const section = healthAssessment.sections.find(
+      (sec) => sec.sectionId.toString() === sectionId
+    );
+    if (!section) {
+      return res.status(404).json({ message: "Section not found" });
+    }
+
+    const question = section.questions.find(
+      (q) => q.questionId.toString() === questionId
+    );
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    if (!question.options.includes(selectedAnswer)) {
+      return res.status(400).json({ message: "Invalid answer option" });
+    }
+
+    // Push the new submission to the submissions array
+    question.submissions = question.submissions || [];
+    question.submissions.push({
+      staffId,
+      selectedAnswer,
+      submittedAt: new Date()
+    });
+
+    // Count how many staff selected each option
+    const optionCount = question.options.reduce((acc, option) => {
+      acc[option] = question.submissions.filter(
+        (submission) => submission.selectedAnswer === option
+      ).length;
+      return acc;
+    }, {});
+
+    // Save the health assessment
+    await healthAssessment.save();
+
+    res.status(200).json({
+      message: "Answer submitted successfully",
+      optionCount: optionCount // Return the count of selected options
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error submitting answer", error: error.message });
+  }
+};
+
 
 
 

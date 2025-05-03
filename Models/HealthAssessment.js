@@ -1,5 +1,4 @@
-import mongoose from 'mongoose';
-
+import mongoose from "mongoose";
 const healthAssessmentSchema = new mongoose.Schema({
   sections: [
     {
@@ -15,9 +14,14 @@ const healthAssessmentSchema = new mongoose.Schema({
             default: () => new mongoose.Types.ObjectId()
           },
           question: { type: String, required: true },
-          options: [String],
-          selectedAnswer: { type: String, default: null }, // staff fills later
-          points: { type: Number, default: 0 }             // staff fills later
+          options: [String], // List of options for the question
+          submissions: [
+            {
+              staffId: { type: String, required: true }, // Staff ID
+              selectedAnswer: { type: String, required: true }, // Answer selected by the staff
+              submittedAt: { type: Date, default: Date.now } // Timestamp of submission
+            }
+          ]
         }
       ]
     }

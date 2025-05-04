@@ -1,17 +1,20 @@
-import mongoose from "mongoose";
-const healthAssessmentSchema = new mongoose.Schema({
+import mongoose from 'mongoose';
+
+const { Schema, model, Types } = mongoose;
+
+const healthAssessmentSchema = new Schema({
   sections: [
     {
       sectionId: {
-        type: mongoose.Schema.Types.ObjectId,
-        default: () => new mongoose.Types.ObjectId()
+        type: Types.ObjectId,
+        default: () => new Types.ObjectId()
       },
       sectionName: { type: String, required: true },
       questions: [
         {
           questionId: {
-            type: mongoose.Schema.Types.ObjectId,
-            default: () => new mongoose.Types.ObjectId()
+            type: Types.ObjectId,
+            default: () => new Types.ObjectId()
           },
           question: { type: String, required: true },
           options: [String], // List of options for the question
@@ -36,6 +39,6 @@ const healthAssessmentSchema = new mongoose.Schema({
   }
 });
 
-const HealthAssessment = mongoose.model('HealthAssessment', healthAssessmentSchema);
+const HealthAssessment = model('HealthAssessment', healthAssessmentSchema);
 
 export default HealthAssessment;

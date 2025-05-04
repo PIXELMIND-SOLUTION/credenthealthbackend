@@ -1307,60 +1307,62 @@ export const getStaffPackages = async (req, res) => {
 
 export const submitAnswer = async (req, res) => {
   try {
-    const { sectionId, questionId, selectedAnswer } = req.body;
-    const { staffId } = req.params; // staffId from URL
+    const { staffId } = req.params; // Getting staffId from the params
+    const answers = req.body.answers; // Array of answers with sectionId, questionId, and selectedAnswer
 
-    const healthAssessment = await HealthAssessment.findOne();
-
-    if (!healthAssessment) {
-      return res.status(404).json({ message: "No assessment found" });
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ message: "Invalid input. Answers must be provided in an array." });
     }
 
-    const section = healthAssessment.sections.find(
-      (sec) => sec.sectionId.toString() === sectionId
-    );
-    if (!section) {
-      return res.status(404).json({ message: "Section not found" });
-    }
-
-    const question = section.questions.find(
-      (q) => q.questionId.toString() === questionId
-    );
-    if (!question) {
-      return res.status(404).json({ message: "Question not found" });
-    }
-
-    if (!question.options.includes(selectedAnswer)) {
-      return res.status(400).json({ message: "Invalid answer option" });
-    }
-
-    // Push the new submission to the submissions array
-    question.submissions = question.submissions || [];
-    question.submissions.push({
-      staffId,
-      selectedAnswer,
-      submittedAt: new Date()
+    // Fetch the health assessment document that contains the sections and questions
+    const healthAssessment = await HealthAssessment.findOne({
+      "sections.sectionId": { $in: answers.map(answer => answer.sectionId) } // Find the health assessment with the given sectionId(s)
     });
 
-    // Count how many staff selected each option
-    const optionCount = question.options.reduce((acc, option) => {
-      acc[option] = question.submissions.filter(
-        (submission) => submission.selectedAnswer === option
-      ).length;
-      return acc;
-    }, {});
+    if (!healthAssessment) {
+      return res.status(404).json({ message: "Assessment or sections not found" });
+    }
 
-    // Save the health assessment
+    // Process each answer
+    for (const { sectionId, questionId, selectedAnswer } of answers) {
+      // Find the section that corresponds to sectionId
+      const section = healthAssessment.sections.find(s => s.sectionId.toString() === sectionId);
+      if (!section) {
+        return res.status(404).json({ message: `Section with ID ${sectionId} not found` });
+      }
+
+      // Find the question that corresponds to questionId
+      const question = section.questions.find(q => q.questionId.toString() === questionId);
+      if (!question) {
+        return res.status(404).json({ message: `Question with ID ${questionId} not found` });
+      }
+
+      // Add the submission for the question
+      question.submissions.push({
+        staffId,
+        selectedAnswer,
+        submittedAt: Date.now()
+      });
+    }
+
+    // Save the updated health assessment document
     await healthAssessment.save();
 
     res.status(200).json({
-      message: "Answer submitted successfully",
-      optionCount: optionCount // Return the count of selected options
+      message: "Answers submitted successfully",
+      data: answers.map(answer => ({
+        staffId,
+        sectionId: answer.sectionId,
+        questionId: answer.questionId,
+        selectedAnswer: answer.selectedAnswer
+      }))
     });
   } catch (error) {
-    res.status(500).json({ message: "Error submitting answer", error: error.message });
+    res.status(500).json({ message: "Error submitting answers", error: error.message });
   }
 };
+
+
 
 
 

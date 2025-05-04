@@ -10,8 +10,7 @@ import connectDatabase from './db/connectDatabase.js';
 import bookingRoutes from './Routes/bookingRotes.js';
 import adminRoutes from './Routes/AdminRoute.js';
 import staffRoutes from './Routes/StaffRoute.js';
-import DoctorRoute from './Routes/DoctorRoute.js'
-
+import DoctorRoute from './Routes/DoctorRoute.js';
 
 dotenv.config();
 
@@ -20,27 +19,33 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// ✅ Serve static files from /uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
-
-// Increase limit for JSON and URL-encoded data
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-
-
 // ✅ CORS Configuration
+const allowedOrigins = ['http://localhost:3000', 'https://credenthealthadmin.vercel.app'];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://credenthealthadmin.vercel.app'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+// ✅ Handle preflight requests explicitly (optional but safe)
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
+// ✅ Static Files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
+
+// ✅ Body Parsers
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+
+// ✅ Cookie Parser
 app.use(cookieParser());
 
-// ✅ DB Connection
+// ✅ Connect to MongoDB
 connectDatabase();
 
 // ✅ API Routes
@@ -48,7 +53,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/booking', bookingRoutes);
 app.use('/api/doctor', DoctorRoute);
-
 
 // ✅ Test Route
 app.get("/", (req, res) => {

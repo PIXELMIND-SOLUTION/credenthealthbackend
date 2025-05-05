@@ -1191,6 +1191,63 @@ export const getAllDiagnosticBookings = async (req, res) => {
 };
 
 
+
+// Controller to get a single diagnostic booking by ID
+export const getSingleDiagnosticBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('staff') // Populate staff details
+      .populate('diagnostic') // Populate diagnostic center details
+      .populate({
+        path: 'diagnostic.tests',
+        select: 'test_name price offerPrice description image'
+      });
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const bookingDetails = {
+      bookingId: booking._id,
+      patient_name: booking.patient_name,
+      patient_age: booking.age,
+      patient_gender: booking.gender,
+      staff_name: booking.staff ? booking.staff.name : 'N/A',
+      diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+      diagnostic_image: booking.diagnostic?.image || '',
+      diagnostic_address: booking.diagnostic?.address || '',
+      consultation_fee: booking.consultation_fee || 0,
+      tests: booking.diagnostic?.tests?.map(test => ({
+        test_name: test.test_name,
+        price: test.price,
+        offerPrice: test.offerPrice || test.price,
+        description: test.description,
+        image: test.image
+      })) || [],
+      appointment_date: booking.appointment_date,
+      gender: booking.gender,
+      age: booking.age,
+      subtotal: booking.subtotal,
+      gst_on_tests: booking.gst_on_tests,
+      gst_on_consultation: booking.gst_on_consultation,
+      total: booking.total,
+      status: booking.status
+    };
+
+    res.status(200).json({
+      message: 'Booking fetched successfully',
+      booking: bookingDetails
+    });
+  } catch (error) {
+    console.error('Error fetching booking:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
 // Controller to get bookings for a specific diagnostic center
 export const getBookingsByDiagnosticId = async (req, res) => {
   try {
@@ -1324,6 +1381,53 @@ export const getAllDoctorAppointments = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+
+export const getSingleDoctorAppointment = async (req, res) => {
+  const { appointmentId } = req.params;
+
+  try {
+    const appointment = await Appointment.findById(appointmentId)
+      .populate({
+        path: 'doctor',
+        select: 'name specialization image',
+      })
+      .populate({
+        path: 'staff',
+        select: 'name',
+      })
+      .select(
+        'patient_name patient_relation age gender subtotal total appointment_date status doctor staff'
+      );
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.status(200).json({
+      message: 'Doctor appointment fetched successfully',
+      appointment: {
+        appointmentId: appointment._id,
+        doctor_name: appointment.doctor?.name,
+        doctor_specialization: appointment.doctor?.specialization,
+        doctor_image: appointment.doctor?.image,
+        staff_name: appointment.staff?.name,
+        appointment_date: appointment.appointment_date,
+        status: appointment.status,
+        patient_name: appointment.patient_name,
+        patient_relation: appointment.patient_relation,
+        age: appointment.age,
+        gender: appointment.gender,
+        subtotal: appointment.subtotal,
+        total: appointment.total,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching appointment:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 
 export const getDoctorAppointments = async (req, res) => {

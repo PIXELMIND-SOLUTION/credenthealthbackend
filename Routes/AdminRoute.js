@@ -54,7 +54,9 @@ import { signupAdmin,
     getDashboardCounts,
     addTestsToStaffByAgeGroup,
     submitSection, 
-    getAssessment
+    getAssessment,
+    getSingleDiagnosticBooking,
+    getSingleDoctorAppointment
  } from '../Controller/ControllerAdmin.js';
  import multer from 'multer';
  const upload = multer({ dest: 'uploads/' });
@@ -124,11 +126,13 @@ router.put('/update-doctor/:id', updateDoctor);
 // Delete
 router.delete('/remvoe-doctors/:id', deleteDoctor);
 router.get('/alldiagnosticsbookings', getAllDiagnosticBookings);
+router.get('/booking/:bookingId', getSingleDiagnosticBooking);
 router.get('/get-bookings/:diagnosticId', getBookingsByDiagnosticId);
 router.delete('/delete-bookings/:bookingId', deleteBookingById);
 router.get('/allaccepteddiagnosticsbookings', getAcceptedDiagnosticBookings);
 router.get('/allrejecteddiagnosticsbookings', getRejectedDiagnosticBookings);
 router.get('/alldoctorbookings', getAllDoctorAppointments);
+router.get('/appointment/:appointmentId', getSingleDoctorAppointment);
 router.get('/alldoctorappointments/:doctorId', getDoctorAppointments);
 
 

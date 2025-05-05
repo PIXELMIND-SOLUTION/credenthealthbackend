@@ -1307,37 +1307,41 @@ export const getStaffPackages = async (req, res) => {
 
 export const submitAnswer = async (req, res) => {
   try {
-    const { staffId } = req.params; // Getting staffId from the params
-    const answers = req.body.answers; // Array of answers with sectionId, questionId, and selectedAnswer
+    const { staffId } = req.params;
+    const answers = req.body.answers;
 
     if (!Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ message: "Invalid input. Answers must be provided in an array." });
     }
 
-    // Fetch the health assessment document that contains the sections and questions
     const healthAssessment = await HealthAssessment.findOne({
-      "sections.sectionId": { $in: answers.map(answer => answer.sectionId) } // Find the health assessment with the given sectionId(s)
+      "sections.sectionId": { $in: answers.map(answer => answer.sectionId) }
     });
 
     if (!healthAssessment) {
       return res.status(404).json({ message: "Assessment or sections not found" });
     }
 
-    // Process each answer
+    let totalPoints = 0;
+
     for (const { sectionId, questionId, selectedAnswer } of answers) {
-      // Find the section that corresponds to sectionId
       const section = healthAssessment.sections.find(s => s.sectionId.toString() === sectionId);
       if (!section) {
         return res.status(404).json({ message: `Section with ID ${sectionId} not found` });
       }
 
-      // Find the question that corresponds to questionId
       const question = section.questions.find(q => q.questionId.toString() === questionId);
       if (!question) {
         return res.status(404).json({ message: `Question with ID ${questionId} not found` });
       }
 
-      // Add the submission for the question
+      // Extract point value from the selectedAnswer string using regex
+      const match = selectedAnswer.match(/(\d+)\s*pts/);
+      const points = match ? parseInt(match[1], 10) : 0;
+
+      totalPoints += points;
+
+      // Add the submission
       question.submissions.push({
         staffId,
         selectedAnswer,
@@ -1345,11 +1349,20 @@ export const submitAnswer = async (req, res) => {
       });
     }
 
-    // Save the updated health assessment document
     await healthAssessment.save();
+
+    // Determine risk category
+    let riskCategory = "Above 65 – Low Risk";
+    if (totalPoints < 50) {
+      riskCategory = "Below 50 – High Risk";
+    } else if (totalPoints < 65) {
+      riskCategory = "Below 65 – Medium Risk";
+    }
 
     res.status(200).json({
       message: "Answers submitted successfully",
+      totalPoints,
+      riskCategory,
       data: answers.map(answer => ({
         staffId,
         sectionId: answer.sectionId,
@@ -1361,6 +1374,7 @@ export const submitAnswer = async (req, res) => {
     res.status(500).json({ message: "Error submitting answers", error: error.message });
   }
 };
+
 
 
 

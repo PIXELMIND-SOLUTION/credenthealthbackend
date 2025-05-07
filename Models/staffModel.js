@@ -172,6 +172,14 @@ const staffSchema = new mongoose.Schema({
     },
   ],
 
+ steps: [
+  {
+    date: { type: Date, required: true },
+    day: { type: String },
+    stepsCount: { type: Number, required: true },
+  }
+],
+
   issues: [
     {
       reason: { type: String },

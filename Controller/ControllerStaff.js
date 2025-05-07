@@ -1377,6 +1377,87 @@ export const submitAnswer = async (req, res) => {
 
 
 
+// Controller to add or update staff's steps
+export const addOrUpdateStaffSteps = async (req, res) => {
+  try {
+    const { staffId } = req.params; // Get staffId from the request parameters
+    const { steps } = req.body; // Get steps from the request body
+
+    const now = new Date();
+    const today = new Date(now.setHours(0, 0, 0, 0)); // Normalize today's date
+    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }); // Get day name
+
+    // Find the staff record by staffId
+    const staff = await Staff.findById(staffId);
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    // Check if steps are already recorded for today
+    const todaySteps = staff.steps.find(
+      (step) => new Date(step.date).getTime() === today.getTime()
+    );
+
+    if (todaySteps) {
+      // Update today's steps count
+      todaySteps.stepsCount += steps;
+    } else {
+      // If no steps recorded for today, add new record with date and day
+      staff.steps.push({
+        date: today,
+        day: dayOfWeek,
+        stepsCount: steps,
+      });
+    }
+
+    await staff.save(); // Save updated staff data with steps
+    res.status(200).json({ message: 'Steps recorded successfully', steps: staff.steps });
+  } catch (error) {
+    console.error('Error recording staff steps:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+export const getStaffStepsHistory = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    // Find the staff record by staffId
+    const staff = await Staff.findById(staffId);
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    // Format steps data and calculate total steps
+    let totalSteps = 0;
+    const stepsSummary = staff.steps.map(step => {
+      const formattedDate = new Date(step.date).toLocaleDateString('en-GB'); // e.g. 07/05/2025
+      totalSteps += step.stepsCount;
+
+      return {
+        date: formattedDate,
+        day: step.day,
+        stepsCount: step.stepsCount,
+      };
+    });
+
+    res.status(200).json({
+      staffId: staff._id,
+      name: staff.name,
+      stepsSummary,
+      totalSteps,
+    });
+  } catch (error) {
+    console.error('Error fetching staff steps:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
 
 
 

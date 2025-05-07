@@ -24,7 +24,9 @@ import { getWalletBalance,
   getPrescription,
   addDiagnosticTestsToStaff,
   getStaffPackages,
-  submitAnswer
+  submitAnswer,
+  addOrUpdateStaffSteps,
+  getStaffStepsHistory
 
  } from '../Controller/ControllerStaff.js';
 
@@ -73,6 +75,8 @@ router.get('/getPrescription/:staffId', getPrescription);
 router.post('/addpackages', addDiagnosticTestsToStaff);
 router.get('/getpackage-test/:staffId', getStaffPackages);
 router.post('/submit-hra/:staffId', submitAnswer);
+router.post('/addsteps/:staffId', addOrUpdateStaffSteps); // POST: To add/update steps
+router.get('/steps/:staffId', getStaffStepsHistory); // GET: To fetch staff's step history
 
 
 

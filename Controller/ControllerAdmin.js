@@ -1000,7 +1000,7 @@ export const createDoctor = async (req, res) => {
       // After the image is uploaded, create the doctor with the form data
       const { name, email, password, specialization, qualification, description, consultation_fee, address, category, schedule } = req.body;
 
-      // Parse the schedule (string) if it's sent as a stringified JSON array
+      // Parse the schedule (string) if it's sent ass a stringified JSON array
       const parsedSchedule = schedule ? JSON.parse(schedule) : [];
 
       // Get the image path (this will be the file path saved in the uploads directory)

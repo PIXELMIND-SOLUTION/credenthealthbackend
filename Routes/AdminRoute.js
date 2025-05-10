@@ -56,7 +56,9 @@ import { signupAdmin,
     submitSection, 
     getAssessment,
     getSingleDiagnosticBooking,
-    getSingleDoctorAppointment
+    getSingleDoctorAppointment,
+    getAllDoctorCategories,
+    getAllDoctorsByFilter
  } from '../Controller/ControllerAdmin.js';
  import multer from 'multer';
  const upload = multer({ dest: 'uploads/' });
@@ -118,6 +120,8 @@ router.post('/create-doctor', createDoctor);
 
 // Read
 router.get('/getdoctors', getAllDoctors);
+router.get('/doctorscategories', getAllDoctorCategories);
+router.get('/doctorsbyfilter', getAllDoctorsByFilter);
 router.get('/single-doctor/:id', getDoctorById);
 
 // Update

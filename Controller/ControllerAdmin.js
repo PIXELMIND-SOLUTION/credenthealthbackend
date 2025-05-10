@@ -2730,6 +2730,74 @@ export const getAssessment = async (req, res) => {
     res.status(500).json({ message: "Error fetching assessment", error: error.message });
   }
 };
+
+
+// Fetch all unique categories from the Doctor model
+export const getAllDoctorCategories = async (req, res) => {
+  try {
+    // Use `distinct` to get all unique categories from the Doctor model
+    const categories = await Doctor.distinct('category');
+
+    if (categories.length === 0) {
+      return res.status(404).json({ message: 'No categories found' });
+    }
+
+    // Return the list of categories
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
   
+
+
+// Fetch all doctors with optional category, consultation_fee filter, and sorting
+export const getAllDoctorsByFilter = async (req, res) => {
+  try {
+    // Extract query parameters for filtering
+    const { category, sortBy, consultation_fee } = req.query;
+
+    // Build the filter object
+    const filter = {};
+
+    // Apply category filter if provided
+    if (category) {
+      filter.category = category;
+    }
+
+    // Apply consultation_fee filter if provided (price <= provided value)
+    if (consultation_fee) {
+      filter.consultation_fee = { $lte: consultation_fee }; // Filter by price <= consultation_fee
+    }
+
+    // Initialize sorting object
+    const sort = {};
+
+    // If sortBy is provided, handle sorting
+    if (sortBy) {
+      const [field, order] = sortBy.split(','); // e.g., "consultation_fee,asc"
+      const sortOrder = order === 'desc' ? -1 : 1; // Determine sort order
+
+      // Set the sort field and order in the sort object
+      sort[field] = sortOrder;
+    }
+
+    // Fetch doctors based on filter and sort
+    const doctors = await Doctor.find(filter).sort(sort);
+
+    // If no doctors match the filter, return a custom message
+    if (doctors.length === 0) {
+      return res.status(404).json({ message: 'No doctors found matching the criteria' });
+    }
+
+    // Return filtered and sorted doctors
+    res.status(200).json(doctors);
+
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
   
 

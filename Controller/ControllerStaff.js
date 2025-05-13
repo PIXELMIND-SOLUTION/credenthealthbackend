@@ -105,103 +105,113 @@ export const staffLogin = async (req, res) => {
 
 
   export const bookAppointment = async (req, res) => {
-    try {
-      const {
-        doctorId,
-        staffId,
-        patient_name,
-        patient_relation,
-        appointment_date,
-        appointment_time,
-      } = req.body;
-  
-      console.log('Received Appointment Data:', req.body);
-  
-      const doctor = await Doctor.findById(doctorId);
-      if (!doctor) {
-        return res.status(400).json({ message: 'Doctor not found' });
-      }
-  
-      let staff;
-      if (staffId) {
-        staff = await Staff.findById(staffId);
-      }
-  
-      if (!staff && req.body.name) {
-        staff = await Staff.findOne({ name: req.body.name });
-      }
-  
-      if (!staff) {
-        return res.status(400).json({ message: 'Staff not found' });
-      }
-  
-      const subtotal = doctor.consultation_fee || 0;
-      const total = subtotal;
-  
-      const newAppointment = new Appointment({
-        doctor: doctor._id,
-        staff: staff._id,
-        status: 'Pending',
-        patient_name: patient_name || staff.name,
-        patient_relation: patient_relation || 'Self',
-        subtotal,
-        total,
-        appointment_date,
-        appointment_time,
-      });
-  
-      await newAppointment.save();
-  
-      if (!staff.doctorAppointments) {
-        staff.doctorAppointments = [];
-      }
-  
-      staff.doctorAppointments.push({
-        appointmentId: newAppointment._id,
-        doctor: doctor._id,
-        status: newAppointment.status,
-        patient_name: newAppointment.patient_name,
-        patient_relation: newAppointment.patient_relation,
-        subtotal,
-        total,
-      });
-  
-      await staff.save();
-  
-      if (!doctor.appointments) {
-        doctor.appointments = [];
-      }
-  
-      doctor.appointments.push({
-        appointmentId: newAppointment._id,
-        staff: staff._id,
-        status: newAppointment.status,
-        patient_name: newAppointment.patient_name,
-        patient_relation: newAppointment.patient_relation,
-      });
-  
-      await doctor.save();
-  
-      res.status(201).json({
-        message: 'Appointment booked successfully',
-        appointment: {
-          appointmentId: newAppointment._id,
-          doctor_details: doctor,           // full doctor object
-          staff_details: staff,             // full staff object
-          patient_name: newAppointment.patient_name,
-          patient_relation: newAppointment.patient_relation,
-          status: newAppointment.status,
-          subtotal,
-          total,
-          appointment_date: newAppointment.appointment_date,
-          appointment_time: newAppointment.appointment_time,
-        },
-      });
-    } catch (error) {
-      console.error('Error booking appointment:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    const {
+      doctorId,
+      staffId,
+      patient_name,
+      patient_relation,
+      appointment_date,
+      appointment_time,
+      age,
+      gender,
+      visit,
+    } = req.body;
+
+    console.log('Received Appointment Data:', req.body);
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(400).json({ message: 'Doctor not found' });
     }
-  };
+
+    let staff;
+    if (staffId) {
+      staff = await Staff.findById(staffId);
+    }
+
+    if (!staff && req.body.name) {
+      staff = await Staff.findOne({ name: req.body.name });
+    }
+
+    if (!staff) {
+      return res.status(400).json({ message: 'Staff not found' });
+    }
+
+    const subtotal = doctor.consultation_fee || 0;
+    const total = subtotal;
+
+    const newAppointment = new Appointment({
+      doctor: doctor._id,
+      staff: staff._id,
+      status: 'Pending',
+      patient_name: patient_name || staff.name,
+      patient_relation: patient_relation || 'Self',
+      appointment_date,
+      appointment_time,
+      age,
+      gender,
+      visit: visit || 'Direct',
+      subtotal,
+      total,
+    });
+
+    await newAppointment.save();
+
+    if (!staff.doctorAppointments) {
+      staff.doctorAppointments = [];
+    }
+
+    staff.doctorAppointments.push({
+      appointmentId: newAppointment._id,
+      doctor: doctor._id,
+      status: newAppointment.status,
+      patient_name: newAppointment.patient_name,
+      patient_relation: newAppointment.patient_relation,
+      subtotal,
+      total,
+    });
+
+    await staff.save();
+
+    if (!doctor.appointments) {
+      doctor.appointments = [];
+    }
+
+    doctor.appointments.push({
+      appointmentId: newAppointment._id,
+      staff: staff._id,
+      status: newAppointment.status,
+      patient_name: newAppointment.patient_name,
+      patient_relation: newAppointment.patient_relation,
+    });
+
+    await doctor.save();
+
+    res.status(201).json({
+      message: 'Appointment booked successfully',
+      appointment: {
+        appointmentId: newAppointment._id,
+        doctor_details: doctor,
+        staff_details: staff,
+        patient_name: newAppointment.patient_name,
+        patient_relation: newAppointment.patient_relation,
+        age: newAppointment.age,
+        gender: newAppointment.gender,
+        visit: newAppointment.visit,
+        status: newAppointment.status,
+        subtotal,
+        total,
+        appointment_date: newAppointment.appointment_date,
+        appointment_time: newAppointment.appointment_time,
+      },
+    });
+  } catch (error) {
+    console.error('Error booking appointment:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
   
   
   
@@ -521,35 +531,38 @@ export const processPayment = async (req, res) => {
   
 
   export const removeFamilyMember = async (req, res) => {
-    try {
-      const { staffId, familyMemberId } = req.params;
-  
-      // Find the staff member
-      const staff = await Staff.findById(staffId);
-      if (!staff) {
-        return res.status(404).json({ message: 'Staff not found' });
-      }
-  
-      // Find the specific family member and remove it
-      const familyMember = staff.family_members.id(familyMemberId);
-      if (!familyMember) {
-        return res.status(404).json({ message: 'Family member not found' });
-      }
-  
-      // Remove the family member from the array
-      familyMember.remove();
-  
-      // Save the updated staff document
-      await staff.save();
-  
-      res.status(200).json({
-        message: 'Family member removed successfully',
-      });
-    } catch (error) {
-      console.error('Error removing family member:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    const { staffId, familyMemberId } = req.params;
+
+    // Find the staff member
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
     }
-  };
+
+    // Check if the family member exists
+    const exists = staff.family_members.some(member => member._id.toString() === familyMemberId);
+    if (!exists) {
+      return res.status(404).json({ message: 'Family member not found' });
+    }
+
+    // Remove the family member using filter
+    staff.family_members = staff.family_members.filter(
+      member => member._id.toString() !== familyMemberId
+    );
+
+    // Save the updated staff document
+    await staff.save();
+
+    res.status(200).json({
+      message: 'Family member removed successfully',
+    });
+  } catch (error) {
+    console.error('Error removing family member:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
   
 
 
@@ -933,11 +946,12 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
     const staff = await Staff.findById(staffId)
       .populate({
         path: 'doctorAppointments.appointmentId', // Populate the appointment details
-        select: 'patient_name patient_relation age gender subtotal total appointment_date appointment_time status payment_status schedule', // Fields to return from the appointment
+        select:
+          'patient_name patient_relation age gender visit subtotal total appointment_date appointment_time status payment_status schedule',
       })
       .populate({
         path: 'doctorAppointments.doctor', // Populate the doctor details inside each appointment
-        select: 'name specialization image', // Select the doctor name, specialization, and image
+        select: 'name specialization image',
       });
 
     if (!staff) {
@@ -946,31 +960,38 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
 
     // Filter by status if it is provided in the request body
     const filteredAppointments = status
-      ? staff.doctorAppointments.filter((appointment) => appointment.appointmentId?.status === status)
+      ? staff.doctorAppointments.filter(
+          (appointment) => appointment.appointmentId?.status === status
+        )
       : staff.doctorAppointments;
 
     // Safeguard: Check for null or undefined doctor or appointmentId before mapping
-    const appointments = filteredAppointments.map((appointment) => {
-      if (!appointment.appointmentId || !appointment.doctor) {
-        return null; // Skip invalid entries
-      }
+    const appointments = filteredAppointments
+      .map((appointment) => {
+        if (!appointment.appointmentId || !appointment.doctor) {
+          return null; // Skip invalid entries
+        }
 
-      return {
-        appointmentId: appointment.appointmentId._id,
-        doctor_name: appointment.doctor.name,
-        doctor_specialization: appointment.doctor.specialization,
-        doctor_image: appointment.doctor.image,
-        appointment_date: appointment.appointmentId.appointment_date,
-        appointment_time: appointment.appointmentId.appointment_time,
-        status: appointment.appointmentId.status,
-        patient_name: appointment.appointmentId.patient_name,
-        patient_relation: appointment.appointmentId.patient_relation,
-        subtotal: appointment.appointmentId.subtotal,
-        total: appointment.appointmentId.total,
-        payment_status: appointment.appointmentId.payment_status,
-        schedule: appointment.appointmentId.schedule,
-      };
-    }).filter(Boolean); // Filter out null entries if any invalid appointment is found
+        return {
+          appointmentId: appointment.appointmentId._id,
+          doctor_name: appointment.doctor.name,
+          doctor_specialization: appointment.doctor.specialization,
+          doctor_image: appointment.doctor.image,
+          appointment_date: appointment.appointmentId.appointment_date,
+          appointment_time: appointment.appointmentId.appointment_time,
+          status: appointment.appointmentId.status,
+          patient_name: appointment.appointmentId.patient_name,
+          patient_relation: appointment.appointmentId.patient_relation,
+          age: appointment.appointmentId.age,
+          gender: appointment.appointmentId.gender,
+          visit: appointment.appointmentId.visit,
+          subtotal: appointment.appointmentId.subtotal,
+          total: appointment.appointmentId.total,
+          payment_status: appointment.appointmentId.payment_status,
+          schedule: appointment.appointmentId.schedule,
+        };
+      })
+      .filter(Boolean); // Filter out null entries if any invalid appointment is found
 
     // Returning the staff details and their doctor appointments along with doctor details and schedule
     res.status(200).json({
@@ -996,58 +1017,60 @@ export const getDoctorAppointmentsForStaff = async (req, res) => {
 
 
 
-// Controller to get details of bookings for a staff member with optional status filter
 export const getAllDiagnosticBookingForStaff = async (req, res) => {
   try {
-    const { staffId } = req.params;  // Get staffId from URL params
-    const { status } = req.body;  // Get status filter from the request body, if any
+    const { staffId } = req.params;
+    const { status } = req.body;
 
-    // 1. Find the staff details using staffId
+    // 1. Find the staff
     const staff = await Staff.findById(staffId);
     if (!staff) {
       return res.status(400).json({ message: 'Staff not found' });
     }
 
-    // 2. Find all bookings associated with the staff member
-    const bookings = await Booking.find({ 'staff': staffId })
-      .populate('staff')  // Populate staff details
-      .populate('diagnostic')  // Populate diagnostic center details
+    // 2. Get all diagnostic bookings for the staff
+    const bookings = await Booking.find({ staff: staffId })
+      .populate('staff')
+      .populate('diagnostic')
       .populate({
-        path: 'diagnostic.tests',  // Populate the embedded tests within the diagnostic center
-        select: 'test_name price offerPrice description image' // Select relevant fields
+        path: 'diagnostic.tests',
+        select: 'test_name price offerPrice description image'
       });
 
     if (!bookings || bookings.length === 0) {
       return res.status(400).json({ message: 'No bookings found for this staff member' });
     }
 
-    // 3. Apply status filter if provided
+    // 3. Filter bookings by status if provided
     const filteredBookings = status
       ? bookings.filter((booking) => booking.status === status)
       : bookings;
 
-    // 4. Prepare the response data for each booking with safety checks
+    // 4. Map and format the booking details
     const bookingDetails = filteredBookings.map((booking) => {
+      // Format appointment_date to "YYYY-MM-DD" if it's a Date object
+      const formattedDate = booking.appointment_date
+        ? new Date(booking.appointment_date).toISOString().split('T')[0]
+        : '';
+
       return {
         bookingId: booking._id,
         patient_name: booking.patient_name,
         patient_age: booking.age,
         patient_gender: booking.gender,
-        staff_name: booking.staff ? booking.staff.name : 'N/A', // Safety check for staff name
-        diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A', // Safety check for diagnostic name
-        diagnostic_image: booking.diagnostic ? booking.diagnostic.image : '', // Safety check for diagnostic image
-        diagnostic_address: booking.diagnostic ? booking.diagnostic.address : '', // Safety check for diagnostic address
+        staff_name: booking.staff ? booking.staff.name : 'N/A',
+        diagnostic_name: booking.diagnostic ? booking.diagnostic.name : 'N/A',
+        diagnostic_image: booking.diagnostic ? booking.diagnostic.image : '',
+        diagnostic_address: booking.diagnostic ? booking.diagnostic.address : '',
         consultation_fee: booking.consultation_fee || 0,
-        tests: booking.diagnostic && booking.diagnostic.tests
-          ? booking.diagnostic.tests.map(test => ({
-              test_name: test.test_name,
-              price: test.price,
-              offerPrice: test.offerPrice || test.price,
-              description: test.description,
-              image: test.image
-            }))
-          : [],  // Ensure tests are populated correctly
-        appointment_date: booking.appointment_date,
+        tests: booking.diagnostic?.tests?.map(test => ({
+          test_name: test.test_name,
+          price: test.price,
+          offerPrice: test.offerPrice || test.price,
+          description: test.description,
+          image: test.image
+        })) || [],
+        appointment_date: formattedDate,
         gender: booking.gender,
         age: booking.age,
         subtotal: booking.subtotal,
@@ -1058,7 +1081,7 @@ export const getAllDiagnosticBookingForStaff = async (req, res) => {
       };
     });
 
-    // 5. Send response with filtered bookings
+    // 5. Return the response
     res.status(200).json({
       message: 'Bookings fetched successfully',
       bookings: bookingDetails
@@ -1068,6 +1091,7 @@ export const getAllDiagnosticBookingForStaff = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 export const getStaffTestPackageById = async (req, res) => {

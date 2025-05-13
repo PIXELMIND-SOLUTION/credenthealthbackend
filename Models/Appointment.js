@@ -28,6 +28,16 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       default: 'Self',
     },
+    age: {
+      type: Number,
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other'],
+    },
+    visit: {
+      type: String, // e.g., "First Visit", "Follow-up"
+    },
     subtotal: {
       type: Number,
       default: 0,

@@ -39,8 +39,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
 // ✅ Body Parsers
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+// Increase the size limit
+app.use(express.json({ limit: '50mb' })); // You can adjust the size to 50mb or more as needed
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ✅ Cookie Parser
 app.use(cookieParser());

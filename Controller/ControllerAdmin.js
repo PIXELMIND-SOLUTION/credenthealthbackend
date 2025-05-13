@@ -14,6 +14,7 @@ import XLSX from 'xlsx';
 import fs from 'fs';
 
 
+
 // Admin Signup
 export const signupAdmin = async (req, res) => {
     try {
@@ -276,6 +277,8 @@ export const createStaffProfile = async (req, res) => {
       dob,
       gender,
       age,
+      role,
+      department,
     } = req.body;
 
     // 2. Check for existing staff with the same email
@@ -298,7 +301,8 @@ export const createStaffProfile = async (req, res) => {
       dob,
       gender,
       age,
-      role: "Staff",
+      role,
+      department,
       profileImage: profileImagePath,
       idImage: idImagePath,
     });
@@ -1746,36 +1750,14 @@ export const deleteCompany = async (req, res) => {
   const { companyId } = req.params; // companyId from URL params
 
   try {
-    // Check if the company exists
-    const company = await Company.findById(companyId);
+    // Check if the company exists and delete it
+    const company = await Company.findByIdAndDelete(companyId);
 
     if (!company) {
       return res.status(404).json({ message: 'Company not found' });
     }
 
-    // Optionally, delete related files and assets (e.g., images and documents)
-    // Assuming `company.image` and `company.documents` hold paths to the files.
-    if (company.image) {
-      // Use fs or a package like 'fs-extra' to delete the file from the server
-      const fs = require('fs');
-      fs.unlinkSync(company.image);
-    }
-
-    if (company.documents && company.documents.length > 0) {
-      const fs = require('fs');
-      company.documents.forEach((doc) => {
-        fs.unlinkSync(doc);
-      });
-    }
-
-    // Delete related diagnostics if necessary (optional)
-    // if (company.diagnostics) {
-    //   await Diagnostic.deleteMany({ _id: { $in: company.diagnostics } });
-    // }
-
-    // Finally, delete the company
-    await Company.findByIdAndDelete(companyId);
-
+    // Return success response
     res.status(200).json({ message: 'Company deleted successfully!' });
   } catch (error) {
     console.error('Error deleting company:', error);

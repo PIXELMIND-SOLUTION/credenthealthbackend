@@ -2755,49 +2755,95 @@ export const getAllDoctorCategories = async (req, res) => {
 // Fetch all doctors with optional category, consultation_fee filter, and sorting
 export const getAllDoctorsByFilter = async (req, res) => {
   try {
-    // Extract query parameters for filtering
-    const { category, sortBy, consultation_fee } = req.query;
+    // Get distinct values for department (category) and consultation types
+    const departments = await Doctor.distinct('category');
+    const consultationTypes = await Doctor.distinct('consultation_type');
+    
+    // Fetch all consultation fees and calculate price ranges
+    const fees = await Doctor.find({}, { consultation_fee: 1, _id: 0 });
+    const prices = fees.map(d => d.consultation_fee).filter(Boolean);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
 
-    // Build the filter object
+    // Define price ranges
+    const priceFilters = [
+      { id: "1", name: "₹0 - ₹499", range: [0, 499] },
+      { id: "2", name: "₹500 - ₹999", range: [500, 999] },
+      { id: "3", name: "₹1000+", range: [1000, maxPrice] }
+    ];
+
+    // Construct the filters object
+    const filters = {
+      Department: departments.map((dept, i) => ({ id: `${i + 1}`, name: dept })),
+      Consultation: consultationTypes.map((type, i) => ({ id: `${i + 1}`, name: type })),
+      Price: priceFilters,
+      "Sort By": [
+        { id: "1", name: "Relevance" },
+        { id: "2", name: "Rating" },
+        { id: "3", name: "Experience" }
+      ]
+    };
+
+    // Return the filters
+    res.status(200).json({ filters });
+  } catch (error) {
+    console.error('Error fetching filters:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+// Fetch doctors with optional filters like category, consultation type, price, and sorting
+export const getAllDoctorsFilter = async (req, res) => {
+  try {
+    // Extract query parameters from the request
+    const { category, consultation_type, consultation_fee, sortBy } = req.query;
+
+    // Initialize the filter object
     const filter = {};
 
     // Apply category filter if provided
     if (category) {
-      filter.category = category;
+      filter.category = category; // Match doctors by category (e.g., "Cardiology")
     }
 
-    // Apply consultation_fee filter if provided (price <= provided value)
+    // Apply consultation_type filter if provided
+    if (consultation_type) {
+      filter.consultation_type = consultation_type; // Match doctors by consultation type (e.g., "In-Person")
+    }
+
+    // Apply consultation_fee filter if provided (price range filter)
     if (consultation_fee) {
-      filter.consultation_fee = { $lte: consultation_fee }; // Filter by price <= consultation_fee
+      const [minFee, maxFee] = consultation_fee.split('-').map(Number);
+      filter.consultation_fee = { $gte: minFee, $lte: maxFee }; // Filter by price range
     }
 
-    // Initialize sorting object
+    // Initialize the sorting object
     const sort = {};
 
-    // If sortBy is provided, handle sorting
+    // Apply sorting if provided
     if (sortBy) {
-      const [field, order] = sortBy.split(','); // e.g., "consultation_fee,asc"
-      const sortOrder = order === 'desc' ? -1 : 1; // Determine sort order
-
-      // Set the sort field and order in the sort object
-      sort[field] = sortOrder;
+      const [field, order] = sortBy.split(',');
+      const sortOrder = order === 'desc' ? -1 : 1; // Sort order
+      sort[field] = sortOrder; // Set the sort field and order
     }
 
-    // Fetch doctors based on filter and sort
+    // Fetch doctors from the database based on the filters
     const doctors = await Doctor.find(filter).sort(sort);
 
-    // If no doctors match the filter, return a custom message
+    // If no doctors are found, return a message indicating no matches
     if (doctors.length === 0) {
       return res.status(404).json({ message: 'No doctors found matching the criteria' });
     }
 
-    // Return filtered and sorted doctors
+    // Return the filtered and sorted list of doctors
     res.status(200).json(doctors);
-
   } catch (error) {
     console.error('Error fetching doctors:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+
   
 

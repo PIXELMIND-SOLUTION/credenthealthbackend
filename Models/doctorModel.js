@@ -11,6 +11,11 @@ const doctorSchema = new mongoose.Schema({
   address: { type: String },
   image: { type: String },
   category: { type: String }, // ✅ new field for category
+  consultation_type: {
+  type: String,
+  enum: ['In-Person', 'Video Call', 'Chat'], // Optional validation
+  required: false
+},
 schedule: [
     {
       day: { type: String },  // e.g., Monday, Tuesday

@@ -1035,54 +1035,66 @@ export const createDoctor = async (req, res) => {
 
 
 
-// Get all doctors with filters
+// Get all doctors with multiple filters and sorting
 export const getAllDoctors = async (req, res) => {
-    try {
-      // Extract query parameters for filtering
-      const { category, department, sortBy, consultationType, consultation_fee } = req.query;
-  
-      // Build the filter object
-      const filter = {};
-  
-      if (category) {
-        filter.category = category;
-      }
-  
-      if (department) {
-        filter.department = department;
-      }
-  
-      if (consultationType) {
-        filter.consultationType = consultationType;
-      }
-  
-      if (consultation_fee) {
-        filter.consultation_fee = { $lte: consultation_fee }; // assuming we want to filter by price less than or equal to the value provided
-      }
-  
-      // Find doctors based on the filter
-      const doctors = await Doctor.find(filter);
-  
-      // If no doctors match the filter, return a custom message
-      if (doctors.length === 0) {
-        return res.status(404).json({ message: 'No doctors found matching the criteria' });
-      }
-  
-      // Sorting if a sortBy parameter is provided
-      if (sortBy) {
-        const [field, order] = sortBy.split(','); // assuming sortBy is passed as "field,order" (e.g. "price,asc")
-        const sortOrder = order === 'desc' ? -1 : 1;
-        doctors.sort((a, b) => (a[field] > b[field] ? sortOrder : -sortOrder)); // Basic in-memory sorting
-      }
-  
-      // Return filtered and sorted doctors
-      res.status(200).json(doctors);
-  
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    // Extract query parameters from the request
+    const {
+      categories,
+      departments,
+      sortBy,
+      consultationTypes,
+      consultation_fee
+    } = req.query;
+
+    // Build the filter object based on the query parameters
+    const filter = {};
+
+    // Handle multiple category filters if provided
+    if (categories) {
+      filter.category = { $in: categories.split(',') };  // Support multiple categories (comma separated)
     }
-  };
+
+    // Handle multiple department filters if provided
+    if (departments) {
+      filter.department = { $in: departments.split(',') };  // Support multiple departments (comma separated)
+    }
+
+    // Handle multiple consultation type filters if provided
+    if (consultationTypes) {
+      filter.consultation_type = { $in: consultationTypes.split(',') };  // Support multiple consultation types (comma separated)
+    }
+
+    // Handle consultation fee range if provided
+    if (consultation_fee) {
+      const [minFee, maxFee] = consultation_fee.split('-').map(Number);
+      filter.consultation_fee = { $gte: minFee, $lte: maxFee }; // Filter doctors within the price range
+    }
+
+    // Fetch all doctors based on the filter criteria
+    const doctors = await Doctor.find(filter);
+
+    // If no doctors are found, return a message indicating no matches
+    if (doctors.length === 0) {
+      return res.status(404).json({ message: 'No doctors found matching the criteria' });
+    }
+
+    // Handle sorting if 'sortBy' parameter is provided
+    if (sortBy) {
+      const [field, order] = sortBy.split(',');  // Sorting in the format "field,order" (e.g., "price,asc")
+      const sortOrder = order === 'desc' ? -1 : 1;  // Set the sort order (ascending or descending)
+      doctors.sort((a, b) => (a[field] > b[field] ? sortOrder : -sortOrder)); // Sort doctors in memory
+    }
+
+    // Return the filtered and sorted list of doctors
+    res.status(200).json(doctors);
+
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
   
   
   // Get doctor by ID

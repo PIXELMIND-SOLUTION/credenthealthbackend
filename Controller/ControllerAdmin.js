@@ -995,22 +995,34 @@ export const addAmountToWallet = async (req, res) => {
 
 export const createDoctor = async (req, res) => {
   try {
-    // Handle the image upload
     uploadDoctorImage(req, res, async (err) => {
       if (err) {
         return res.status(400).json({ message: 'Error uploading image', error: err.message });
       }
 
-      // After the image is uploaded, create the doctor with the form data
-      const { name, email, password, specialization, qualification, description, consultation_fee, address, category, schedule } = req.body;
+      const {
+        name,
+        email,
+        password,
+        specialization,
+        qualification,
+        description,
+        consultation_fee,
+        address,
+        category,
+        consultation_type,
+        schedule
+      } = req.body;
 
-      // Parse the schedule (string) if it's sent ass a stringified JSON array
+      // Validate consultation type
+      const validTypes = ['In-Person', 'Video Call', 'Chat'];
+      if (!validTypes.includes(consultation_type)) {
+        return res.status(400).json({ message: 'Invalid consultation type' });
+      }
+
       const parsedSchedule = schedule ? JSON.parse(schedule) : [];
-
-      // Get the image path (this will be the file path saved in the uploads directory)
       const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : null;
 
-      // Create a new Doctor document
       const doctor = new Doctor({
         name,
         email,
@@ -1022,13 +1034,12 @@ export const createDoctor = async (req, res) => {
         address,
         image,
         category,
-        schedule: parsedSchedule, // Save the parsed schedule (with day, date, and time slots)
+        consultation_type,
+        schedule: parsedSchedule
       });
 
-      // Save the doctor to the database
       await doctor.save();
 
-      // Send response back
       res.status(201).json({ message: 'Doctor created successfully', doctor });
     });
   } catch (error) {
@@ -1036,6 +1047,7 @@ export const createDoctor = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 
@@ -2671,13 +2683,15 @@ export const addTestsToStaffByAgeGroup = async (req, res) => {
 
 export const submitSection = async (req, res) => {
   try {
-    const { questions } = req.body;
+    const { sectionName, questions } = req.body;
 
-    if (!questions || !Array.isArray(questions)) {
-      return res.status(400).json({ message: 'questions are required and must be an array.' });
+    if (!sectionName || !questions || !Array.isArray(questions)) {
+      return res.status(400).json({ message: 'sectionName and questions are required. questions must be an array.' });
     }
 
-    const formattedQuestions = questions.map((q, index) => {
+    const sectionId = new mongoose.Types.ObjectId();
+
+    const formattedQuestions = questions.map((q) => {
       const formattedOptions = [];
       const points = {};
 
@@ -2702,20 +2716,34 @@ export const submitSection = async (req, res) => {
       };
     });
 
-    const newAssessment = new HealthAssessment({
-      questions: formattedQuestions
+    let healthAssessment = await HealthAssessment.findOne();
+
+    if (!healthAssessment) {
+      healthAssessment = new HealthAssessment({
+        sections: [{ sectionId, sectionName, questions: formattedQuestions }]
+      });
+    } else {
+      healthAssessment.sections.push({ sectionId, sectionName, questions: formattedQuestions });
+    }
+
+    await healthAssessment.save();
+
+    res.status(200).json({
+      message: 'Section added successfully',
+      data: {
+        sectionId,
+        sectionName,
+        questions: formattedQuestions.map(q => ({
+          questionId: q.questionId,
+          question: q.question,
+          options: q.options,
+          points: q.points
+        }))
+      }
     });
-
-    const savedAssessment = await newAssessment.save();
-
-    res.status(201).json({
-      message: 'Health assessment saved successfully',
-      data: savedAssessment
-    });
-
   } catch (error) {
-    console.error('Error saving assessment:', error);
-    res.status(500).json({ message: 'Error saving assessment', error: error.message });
+    console.error('Error adding section:', error);
+    res.status(500).json({ message: 'Error adding section', error: error.message });
   }
 };
 

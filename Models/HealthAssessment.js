@@ -3,31 +3,36 @@ import mongoose from 'mongoose';
 const { Schema, model, Types } = mongoose;
 
 const healthAssessmentSchema = new Schema({
-  questions: [
+  sections: [
     {
-      questionId: {
+      sectionId: {
         type: Types.ObjectId,
         default: () => new Types.ObjectId()
       },
-      question: { type: String, required: true },
-      options: [String], // List of options for the question
-      points: {
-        type: Map,
-        of: Number // Map option text to its score
-      },
-      submissions: [
+      sectionName: { type: String, required: true },
+      questions: [
         {
-          staffId: { type: String, required: true },
-          selectedAnswer: { type: String, required: true },
-          submittedAt: { type: Date, default: Date.now }
+          questionId: {
+            type: Types.ObjectId,
+            default: () => new Types.ObjectId()
+          },
+          question: { type: String, required: true },
+          options: [String], // List of options for the question
+          points: {
+            type: Map,
+            of: Number // Optional: map of option text to its score
+          },
+          submissions: [
+            {
+              staffId: { type: String, required: true }, // Staff ID
+              selectedAnswer: { type: String, required: true }, // Answer selected by the staff
+              submittedAt: { type: Date, default: Date.now } // Timestamp of submission
+            }
+          ]
         }
       ]
     }
   ],
-  totalScore: {
-    type: Number,
-    default: 0
-  },
   createdAt: {
     type: Date,
     default: Date.now

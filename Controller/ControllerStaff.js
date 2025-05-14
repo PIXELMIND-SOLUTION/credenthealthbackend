@@ -1334,41 +1334,87 @@ export const submitAnswer = async (req, res) => {
     const { staffId } = req.params;
     const answers = req.body.answers;
 
+    console.log("Received request to submit answers");
+    console.log("Staff ID:", staffId);
+    console.log("Answers payload:", JSON.stringify(answers, null, 2));
+
     if (!Array.isArray(answers) || answers.length === 0) {
-      return res.status(400).json({ message: "Invalid input. Answers must be an array." });
+      console.log("Invalid input: answers not provided or not an array");
+      return res.status(400).json({ message: "Invalid input. Answers must be provided in an array." });
     }
 
-    const healthAssessment = await HealthAssessment.findOne();
+    const sectionIds = answers.map(answer => answer.sectionId);
+    console.log("Looking for sections in HealthAssessment with IDs:", sectionIds);
+
+    const healthAssessment = await HealthAssessment.findOne({
+      "sections.sectionId": { $in: sectionIds }
+    });
+
     if (!healthAssessment) {
-      return res.status(404).json({ message: "Health assessment not found." });
+      console.log("No health assessment found containing the provided section IDs.");
+      return res.status(404).json({ message: "Assessment or sections not found" });
     }
 
     let totalPoints = 0;
 
-    for (const { questionId, selectedAnswer } of answers) {
-      const question = healthAssessment.questions.find(
-        q => q.questionId.toString() === questionId
-      );
+    for (const { sectionId, questionId, selectedAnswer } of answers) {
+      console.log(`Processing answer for Section: ${sectionId}, Question: ${questionId}`);
+      console.log("Selected Answer:", selectedAnswer);
 
-      if (!question) {
-        return res.status(404).json({ message: `Question with ID ${questionId} not found.` });
+      const section = healthAssessment.sections.find(s => s.sectionId.toString() === sectionId);
+      if (!section) {
+        console.log(`Section with ID ${sectionId} not found in assessment.`);
+        return res.status(404).json({ message: `Section with ID ${sectionId} not found` });
       }
 
-      const pointsForAnswer = question.points.get(selectedAnswer) || 0;
-      totalPoints += pointsForAnswer;
+      const question = section.questions.find(q => q.questionId.toString() === questionId);
+      if (!question) {
+        console.log(`Question with ID ${questionId} not found in section ${sectionId}`);
+        return res.status(404).json({ message: `Question with ID ${questionId} not found` });
+      }
 
+      console.log("Question Points:", question.points);
+
+      // Check if points is a Map and convert to object if necessary
+      const pointsObject = question.points instanceof Map ? Object.fromEntries(question.points) : question.points;
+
+      // Trim both selectedAnswer and the options to avoid extra spaces or formatting issues
+      const cleanedSelectedAnswer = selectedAnswer.trim();
+      const cleanedOptions = Object.keys(pointsObject).map(option => option.trim());
+
+      console.log("Cleaned Selected Answer:", cleanedSelectedAnswer);
+      console.log("Cleaned Options:", cleanedOptions);
+
+      // Check if the selected answer is in the options
+      let points = 0;
+      if (cleanedOptions.includes(cleanedSelectedAnswer)) {
+        points = pointsObject[cleanedSelectedAnswer];
+        console.log(`Points for answer "${cleanedSelectedAnswer}":`, points);
+      } else {
+        console.log(`Selected answer "${cleanedSelectedAnswer}" not found in options.`);
+      }
+
+      totalPoints += points;
+
+      // Push submission
       const submission = {
         staffId,
         selectedAnswer,
         submittedAt: Date.now()
       };
 
+      console.log("Adding submission:", submission);
+      if (!question.submissions) {
+        question.submissions = [];
+      }
       question.submissions.push(submission);
     }
 
+    console.log("Total Points Accumulated:", totalPoints);
     await healthAssessment.save();
+    console.log("Health assessment saved successfully");
 
-    // Risk category classification
+    // Risk category determination
     let riskCategory = "Above 65 – Low Risk";
     if (totalPoints < 50) {
       riskCategory = "Below 50 – High Risk";
@@ -1376,19 +1422,25 @@ export const submitAnswer = async (req, res) => {
       riskCategory = "Below 65 – Medium Risk";
     }
 
-    res.status(200).json({
+    console.log("Final Risk Category:", riskCategory);
+
+    const responsePayload = {
       message: "Answers submitted successfully",
       totalPoints,
       riskCategory,
       data: answers.map(answer => ({
         staffId,
+        sectionId: answer.sectionId,
         questionId: answer.questionId,
         selectedAnswer: answer.selectedAnswer
       }))
-    });
+    };
+
+    console.log("Response Payload:", JSON.stringify(responsePayload, null, 2));
+    res.status(200).json(responsePayload);
 
   } catch (error) {
-    console.error("Error submitting answers:", error);
+    console.error("Error occurred during answer submission:", error);
     res.status(500).json({ message: "Error submitting answers", error: error.message });
   }
 };

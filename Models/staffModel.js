@@ -21,7 +21,6 @@ const staffSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['Admin', 'Staff'],
     default: 'Staff',
   },
   contact_number: {

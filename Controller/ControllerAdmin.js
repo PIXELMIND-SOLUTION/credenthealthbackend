@@ -1197,21 +1197,67 @@ export const getAllDoctors = async (req, res) => {
     }
   };
   
-  // Update doctor
-  export const updateDoctor = async (req, res) => {
-    try {
-      const updatedDoctor = await Doctor.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-      );
-      if (!updatedDoctor) return res.status(404).json({ message: 'Doctor not found' });
-      res.status(200).json({ message: 'Doctor updated successfully', doctor: updatedDoctor });
-    } catch (error) {
-      console.error('Error updating doctor:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
-  };
+ export const updateDoctor = async (req, res) => {
+  try {
+    uploadDoctorImage(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ message: 'Error uploading image', error: err.message });
+      }
+
+      const {
+        name,
+        email,
+        password,
+        specialization,
+        qualification,
+        description,
+        consultation_fee,
+        address,
+        category,
+        consultation_type,
+        schedule
+      } = req.body;
+
+      // Validate consultation type
+      const validTypes = ['In-Person', 'Video Call', 'Chat'];
+      if (consultation_type && !validTypes.includes(consultation_type)) {
+        return res.status(400).json({ message: 'Invalid consultation type' });
+      }
+
+      const doctor = await Doctor.findById(req.params.id);
+      if (!doctor) {
+        return res.status(404).json({ message: 'Doctor not found.' });
+      }
+
+      const parsedSchedule = schedule ? JSON.parse(schedule) : doctor.schedule;
+      const image = req.file ? `/uploads/doctorimages/${req.file.filename}` : doctor.image;
+
+      // Update fields (fallback to current if not provided)
+      doctor.name = name || doctor.name;
+      doctor.email = email || doctor.email;
+      doctor.password = password || doctor.password;
+      doctor.specialization = specialization || doctor.specialization;
+      doctor.qualification = qualification || doctor.qualification;
+      doctor.description = description || doctor.description;
+      doctor.consultation_fee = consultation_fee || doctor.consultation_fee;
+      doctor.address = address || doctor.address;
+      doctor.category = category || doctor.category;
+      doctor.consultation_type = consultation_type || doctor.consultation_type;
+      doctor.schedule = parsedSchedule;
+      doctor.image = image;
+
+      await doctor.save();
+
+      res.status(200).json({
+        message: 'Doctor details updated successfully',
+        doctor
+      });
+    });
+  } catch (error) {
+    console.error('Error updating doctor:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
   
   // Delete doctor
   export const deleteDoctor = async (req, res) => {

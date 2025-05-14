@@ -2671,40 +2671,51 @@ export const addTestsToStaffByAgeGroup = async (req, res) => {
 
 export const submitSection = async (req, res) => {
   try {
-    const { sectionName, questions } = req.body;
+    const { questions } = req.body;
 
-    const sectionId = new mongoose.Types.ObjectId();
-    const formattedQuestions = questions.map(q => ({
-      questionId: new mongoose.Types.ObjectId(),
-      question: q.question,
-      options: q.options
-    }));
-
-    let healthAssessment = await HealthAssessment.findOne();
-
-    if (!healthAssessment) {
-      healthAssessment = new HealthAssessment({
-        sections: [{ sectionId, sectionName, questions: formattedQuestions }]
-      });
-    } else {
-      healthAssessment.sections.push({ sectionId, sectionName, questions: formattedQuestions });
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({ message: 'questions are required and must be an array.' });
     }
 
-    await healthAssessment.save();
+    const formattedQuestions = questions.map((q, index) => {
+      const formattedOptions = [];
+      const points = {};
 
-    res.status(200).json({
-      message: 'Section added successfully',
-      data: {
-        sectionId,
-        questions: formattedQuestions.map(q => ({
-          questionId: q.questionId,
-          question: q.question,
-          options: q.options
-        }))
-      }
+      q.options.forEach(opt => {
+        const match = opt.match(/^(.*?)(?:\s*→\s*|\s*->\s*)(\d+)\s*pts?$/i);
+        if (match) {
+          const optionText = match[1].trim();
+          const pointValue = parseInt(match[2], 10);
+          formattedOptions.push(optionText);
+          points[optionText] = pointValue;
+        } else {
+          formattedOptions.push(opt.trim());
+          points[opt.trim()] = 0;
+        }
+      });
+
+      return {
+        questionId: new mongoose.Types.ObjectId(),
+        question: q.question,
+        options: formattedOptions,
+        points
+      };
     });
+
+    const newAssessment = new HealthAssessment({
+      questions: formattedQuestions
+    });
+
+    const savedAssessment = await newAssessment.save();
+
+    res.status(201).json({
+      message: 'Health assessment saved successfully',
+      data: savedAssessment
+    });
+
   } catch (error) {
-    res.status(500).json({ message: 'Error adding section', error: error.message });
+    console.error('Error saving assessment:', error);
+    res.status(500).json({ message: 'Error saving assessment', error: error.message });
   }
 };
 

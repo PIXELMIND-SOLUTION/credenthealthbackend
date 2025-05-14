@@ -1334,68 +1334,41 @@ export const submitAnswer = async (req, res) => {
     const { staffId } = req.params;
     const answers = req.body.answers;
 
-    console.log("Received request to submit answers");
-    console.log("Staff ID:", staffId);
-    console.log("Answers payload:", JSON.stringify(answers, null, 2));
-
     if (!Array.isArray(answers) || answers.length === 0) {
-      console.log("Invalid input: answers not provided or not an array");
-      return res.status(400).json({ message: "Invalid input. Answers must be provided in an array." });
+      return res.status(400).json({ message: "Invalid input. Answers must be an array." });
     }
 
-    const sectionIds = answers.map(answer => answer.sectionId);
-    console.log("Looking for sections in HealthAssessment with IDs:", sectionIds);
-
-    const healthAssessment = await HealthAssessment.findOne({
-      "sections.sectionId": { $in: sectionIds }
-    });
-
+    const healthAssessment = await HealthAssessment.findOne();
     if (!healthAssessment) {
-      console.log("No health assessment found containing the provided section IDs.");
-      return res.status(404).json({ message: "Assessment or sections not found" });
+      return res.status(404).json({ message: "Health assessment not found." });
     }
 
     let totalPoints = 0;
 
-    for (const { sectionId, questionId, selectedAnswer } of answers) {
-      console.log(`Processing answer for Section: ${sectionId}, Question: ${questionId}`);
+    for (const { questionId, selectedAnswer } of answers) {
+      const question = healthAssessment.questions.find(
+        q => q.questionId.toString() === questionId
+      );
 
-      const section = healthAssessment.sections.find(s => s.sectionId.toString() === sectionId);
-      if (!section) {
-        console.log(`Section with ID ${sectionId} not found in assessment.`);
-        return res.status(404).json({ message: `Section with ID ${sectionId} not found` });
-      }
-
-      const question = section.questions.find(q => q.questionId.toString() === questionId);
       if (!question) {
-        console.log(`Question with ID ${questionId} not found in section ${sectionId}`);
-        return res.status(404).json({ message: `Question with ID ${questionId} not found` });
+        return res.status(404).json({ message: `Question with ID ${questionId} not found.` });
       }
 
-      console.log("Selected Answer:", selectedAnswer);
+      const pointsForAnswer = question.points.get(selectedAnswer) || 0;
+      totalPoints += pointsForAnswer;
 
-      const match = selectedAnswer.match(/(\d+)\s*pts/);
-      const points = match ? parseInt(match[1], 10) : 0;
-
-      console.log(`Extracted points: ${points}`);
-      totalPoints += points;
-
-      // Push submission
       const submission = {
         staffId,
         selectedAnswer,
         submittedAt: Date.now()
       };
 
-      console.log("Adding submission:", submission);
       question.submissions.push(submission);
     }
 
-    console.log("Total Points Accumulated:", totalPoints);
     await healthAssessment.save();
-    console.log("Health assessment saved successfully");
 
-    // Risk category determination
+    // Risk category classification
     let riskCategory = "Above 65 – Low Risk";
     if (totalPoints < 50) {
       riskCategory = "Below 50 – High Risk";
@@ -1403,29 +1376,22 @@ export const submitAnswer = async (req, res) => {
       riskCategory = "Below 65 – Medium Risk";
     }
 
-    console.log("Final Risk Category:", riskCategory);
-
-    const responsePayload = {
+    res.status(200).json({
       message: "Answers submitted successfully",
       totalPoints,
       riskCategory,
       data: answers.map(answer => ({
         staffId,
-        sectionId: answer.sectionId,
         questionId: answer.questionId,
         selectedAnswer: answer.selectedAnswer
       }))
-    };
-
-    console.log("Response Payload:", JSON.stringify(responsePayload, null, 2));
-    res.status(200).json(responsePayload);
+    });
 
   } catch (error) {
-    console.error("Error occurred during answer submission:", error);
+    console.error("Error submitting answers:", error);
     res.status(500).json({ message: "Error submitting answers", error: error.message });
   }
 };
-
 
 
 

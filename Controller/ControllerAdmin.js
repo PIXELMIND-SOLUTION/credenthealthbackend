@@ -54,35 +54,107 @@ export const signupAdmin = async (req, res) => {
 
 // Admin Login
 export const loginAdmin = async (req, res) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-        // Check if admin exists
-        const admin = await Admin.findOne({ email });
-        if (!admin) {
-            return res.status(400).json({ message: 'Admin does not exist' });
-        }
-
-        // Check if password matches (no bcrypt, just direct comparison)
-        if (admin.password !== password) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        // Generate JWT token
-        const token = generateToken(admin._id);
-
-        res.status(200).json({
-            message: 'Login successful',
-            token,
-            admin: {
-                name: admin.name,
-                email: admin.email,
-            },
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+    // Check if admin exists
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(400).json({ message: 'Admin does not exist' });
     }
+
+    // Check if password matches (no bcrypt, just direct comparison)
+    if (admin.password !== password) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = generateToken(admin._id);
+
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      admin: {
+        adminId: admin._id,  // Added adminId
+        name: admin.name,
+        email: admin.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
+
+
+
+// Get Admin by ID (includes password)
+export const getAdminById = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    // Validate MongoDB ObjectId format
+    if (!adminId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid admin ID' });
+    }
+
+    const admin = await Admin.findById(adminId); // Includes password
+
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    res.status(200).json({
+      message: 'Admin fetched successfully',
+      admin
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+// Update Admin by ID
+export const updateAdminById = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { name, email, password } = req.body;
+
+    // Validate ID format
+    if (!adminId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid admin ID' });
+    }
+
+    const admin = await Admin.findById(adminId);
+
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    // Update fields if provided
+    if (name) admin.name = name;
+    if (email) admin.email = email;
+    if (password) admin.password = password; // NOTE: No bcrypt used (as per current system)
+
+    await admin.save();
+
+    res.status(200).json({
+      message: 'Admin updated successfully',
+      admin: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        password: admin.password,
+        role: admin.role,
+        createdAt: admin.createdAt,
+        updatedAt: admin.updatedAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
 
 
 // Admin Logout Controller

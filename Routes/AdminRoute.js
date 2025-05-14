@@ -59,7 +59,9 @@ import { signupAdmin,
     getSingleDoctorAppointment,
     getAllDoctorCategories,
     getAllDoctorsByFilter,
-    getAllDoctorsFilter
+    getAllDoctorsFilter,
+    getAdminById,
+    updateAdminById
  } from '../Controller/ControllerAdmin.js';
  import multer from 'multer';
  const upload = multer({ dest: 'uploads/' });
@@ -73,6 +75,9 @@ router.post('/signup', signupAdmin);
 // Route for Admin Login
 router.post('/login', loginAdmin);
 router.post('/logout', logoutAdmin);
+router.get('/getadmin/:adminId', getAdminById);
+router.put('/updateadmin/:adminId', updateAdminById);
+
 
 
 // Route to create new doctor details

@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // ✅ CORS Configuration
-const allowedOrigins = ['http://localhost:3000', 'https://credenthealthadmin.vercel.app'];
+const allowedOrigins = ['http://localhost:3000', 'https://credenthealthadmin.vercel.app', 'https://credenthealthadmin-j1y3.vercel.app'];
 
 app.use(cors({
   origin: allowedOrigins,

@@ -1,0 +1,4 @@
+﻿packageName,price,offerPrice,tests,suggestions
+Full Body Test,2000,1500,"[""Blood Sugar"",""CBC"",""Lipid Profile""]","[""Fasting"", ""No alcohol""]"
+Basic Checkup,800,600,"[""Blood Pressure"",""Heart Rate""]","[""Avoid coffee""]"
+X-Ray Package,1000,850,"[""Chest X-Ray"",""Spine X-Ray""]","[""Remove metal objects""]"

@@ -1,63 +1,117 @@
 import mongoose from 'mongoose';
 
-// Booking Schema
 const bookingSchema = new mongoose.Schema({
-  patient_name: {
+  staffId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Staff",
+  },
+  familyMemberId: {
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  diagnosticId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Diagnostic",
+  },
+  report_file: {
+    type: String,
+    default: null,
+  },
+    createdByAdmin: { type: Boolean, default: false },
+  diagPrescription: {
+    type: String,
+    default: null,
+  },
+  doctorReports: {
+    type: [String],
+    default: [],
+  },
+  doctorPrescriptions: {
+    type: [String],
+    default: [],
+  },
+  serviceType: {
+    type: String,
+    enum: ["Home Collection", "Center Visit"],
+  },
+  cartId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Cart",
+  },
+  packageId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Package",
+  },
+  doctorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Doctor",
+    default: null,
+  },
+  isBooked: {
+    type: Boolean,
+    default: false,
+  },
+  bookedSlot: {
+    day: { type: String },
+    date: { type: String },
+    timeSlot: { type: String },
+  },
+  totalPrice: Number,
+  type: {
+    type: String,
+    enum: ["Online", "Offline"],
+  },
+  meetingLink: {
     type: String,
   },
-  category: {
-    type: String, // diagnostic, etc.
+  transactionId: {
+    type: String,
+    default: null,
   },
-  diagnostic: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Diagnostic',  // Reference to the Diagnostic model
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'authorized', 'captured', 'failed', null],
+    default: null,
   },
-  doctor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Doctor',
+  paymentDetails: {
+    type: Object,
+    default: null,
   },
-  tests: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Test',
-  }],
-  packageId: { // ✅ New field to track which package was used
-    type: mongoose.Schema.Types.ObjectId,
+  isSuccessfull: {
+    type: Boolean,
+    default: true,
   },
-  subtotal: {
-    type: Number,
-  },
-  consultation_fee: {
-    type: Number,
-  },
-  gst_on_tests: {
-    type: Number,
-  },
-  gst_on_consultation: {
-    type: Number,
-  },
-  total: {
-    type: Number,
-  },
-  appointment_date: {
-    type: Date,
-  },
-  staff: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Staff',
-  },
-  gender: {  // Added gender field without required validation
-    type: String, // You can make it 'String' or 'Enum' based on the gender options you'd like to allow
-  },
-  age: {  // Added age field without required validation
-    type: Number,
-  },
+  couponCode: String,
+  discount: Number,
+  payableAmount: Number,
   status: {
     type: String,
-    default: 'Pending',
+    default: "Pending",
   },
+
+  // ✅ Unique, Optional Booking IDs (Safe)
+  doctorConsultationBookingId: {
+    type: String,
+    unique: true,
+    sparse: true, // allow multiple nulls
+    index: true,
+  },
+  diagnosticBookingId: {
+    type: String,
+    unique: true,
+    sparse: true, // ✅ makes it optional without collisions
+    index: true,
+  },
+
+  // 🗓️ Dates and Time
+  date: {
+    type: String,
+  },
+  timeSlot: {
+    type: String,
+  },
+
 }, { timestamps: true });
 
-// Create Booking model
 const Booking = mongoose.model('Booking', bookingSchema);
 
 export default Booking;

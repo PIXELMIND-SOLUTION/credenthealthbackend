@@ -10,6 +10,9 @@ const categorySchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    image: {
+      type: String, // Store image URL or path
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields

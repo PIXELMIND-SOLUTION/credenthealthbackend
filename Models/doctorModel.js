@@ -13,21 +13,43 @@ const doctorSchema = new mongoose.Schema({
   category: { type: String }, // ✅ new field for category
   role: { type: String }, // ✅ new field for category
   department: { type: String }, // ✅ new field for category
+   documents: [{ type: String }], // ✅ New field for documents
   consultation_type: {
   type: String,
-  enum: ['In-Person', 'Video Call', 'Chat'], // Optional validation
+  enum: ['In-Person', 'Video Call', 'Chat', 'Online', 'Offline', 'Both'], // Optional validation
   required: false
 },
-schedule: [
+  schedule: [
+  {
+    day: { type: String },
+    date: { type: String }, // ✅ Add this line
+    time_slots: [
+      {
+        time: { type: String },
+        isBooked: { type: Boolean, default: false }
+      }
+    ]
+  }
+],
+  onlineSlots: [
     {
-      day: { type: String },  // e.g., Monday, Tuesday
-      date: { type: String },  // e.g., 28-04-2025
-      time_slots: [
-        { time: { type: String } },  // e.g., 09:00 AM, 09:30 AM
-      ],
+      day: String,
+      date: String,
+      timeSlot: String,
+      isBooked: { type: Boolean, default: false }
     },
-  ], // New field for schedule with time slots
+  ],
+  offlineSlots: [
+    {
+      day: String,
+      date: String,
+      timeSlot: String,
+      isBooked: { type: Boolean, default: false }
+    },
+  ],
+
   myBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }], // Add this line
+  isOnline: { type: Boolean, default: false }, // Track if doctor is online or offline
 }, { timestamps: true });
 
 const Doctor = mongoose.model('Doctor', doctorSchema);

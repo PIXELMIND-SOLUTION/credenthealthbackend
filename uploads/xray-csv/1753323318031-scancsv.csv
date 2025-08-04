@@ -1,0 +1,4 @@
+﻿"title,price,preparation,reportTime,image"
+"Chest X-ray,500,Fasting not required,24 hours,http://example.com/xray1.jpg"
+"Abdomen Scan,700,Empty stomach,12 hours,"
+"Hand X-ray,300,None,6 hours,http://example.com/xray2.jpg"

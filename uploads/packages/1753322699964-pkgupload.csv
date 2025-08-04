@@ -1,0 +1,4 @@
+﻿name,price,doctorInfo,totalTestsIncluded,description,precautions,includedTests
+Full Body,999,Dr. Smith,3,Full checkup,12 hours fasting,"[{""name"":""Blood Test"",""subTestCount"":2,""subTests"":[""CBC"",""Hemoglobin""]},{""name"":""Urine Test"",""subTestCount"":1,""subTests"":[""Routine Urine""]}]"
+Basic Panel,499,Dr. Brown,1,Basic tests,No fasting needed,"[{""name"":""Sugar Test"",""subTestCount"":1,""subTests"":[""Fasting Sugar""]}]"
+,,,,,,

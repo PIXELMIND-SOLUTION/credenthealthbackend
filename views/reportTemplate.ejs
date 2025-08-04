@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Booking Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      color: #005b99;
+      margin-bottom: 20px;
+    }
+    .report-container {
+      width: 80%;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #0073e6;
+      margin-bottom: 10px;
+    }
+    p {
+      margin: 5px 0;
+    }
+    .status {
+      font-weight: bold;
+      color: #d9534f;
+    }
+    .status-confirmed {
+      color: #5bc0de;
+    }
+    .test-item {
+      margin-left: 20px;
+    }
+    .button {
+      background-color: #0073e6;
+      color: white;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+    .button:hover {
+      background-color: #005b99;
+    }
+    .diagnostic-image {
+      max-width: 200px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Booking Report</h1>
+
+  <div class="report-container">
+
+    <!-- Booking Details -->
+    <div class="section">
+      <div class="section-title">Booking Details</div>
+      <p><strong>Booking ID:</strong> <%= booking._id %></p>
+      <p><strong>Patient Name:</strong> <%= booking.familyMemberId?.name || 'N/A' %></p>
+      <p><strong>Service Type:</strong> <%= booking.serviceType %></p>
+      <p><strong>Date of Booking:</strong> <%= booking.date %></p>
+      <p><strong>Time Slot:</strong> <%= booking.timeSlot %></p>
+      <p><strong>Status:</strong> <span class="<%= booking.status === 'Confirmed' ? 'status-confirmed' : 'status' %>"><%= booking.status %></span></p>
+    </div>
+
+    <!-- Diagnostic Details -->
+    <% if (booking.diagnosticId) { %>
+    <div class="section">
+      <div class="section-title">Diagnostic Details</div>
+      <% if (booking.diagnosticId.image) { %>
+        <img class="diagnostic-image" src="<%= booking.diagnosticId.image %>" alt="Diagnostic Image">
+      <% } %>
+      <p><strong>Name:</strong> <%= booking.diagnosticId.name %></p>
+      <p><strong>Distance:</strong> <%= booking.diagnosticId.distance %></p>
+    </div>
+    <% } %>
+
+    <!-- Test/Xray Details -->
+    <% if (booking.cartId && booking.cartId.items && booking.cartId.items.length > 0) { %>
+    <div class="section">
+      <div class="section-title">Test / X-Ray Details</div>
+      <% booking.cartId.items.forEach(function(item) { %>
+        <% if (item.itemDetails) { %>
+        <div class="test-item">
+          <p><strong>Name:</strong> <%= item.itemDetails.name %></p>
+          <p><strong>Description:</strong> <%= item.itemDetails.description %></p>
+          <p><strong>Category:</strong> <%= item.itemDetails.category %></p>
+          <p><strong>Price:</strong> ₹<%= item.itemDetails.price %></p>
+          <p><strong>Fasting Required:</strong> <%= item.itemDetails.fastingRequired ? 'Yes' : 'No' %></p>
+          <p><strong>Home Collection:</strong> <%= item.itemDetails.homeCollectionAvailable ? 'Yes' : 'No' %></p>
+          <p><strong>Report Delivery:</strong> <%= item.itemDetails.reportIn24Hrs ? 'Within 24 Hours' : 'Not Specified' %></p>
+        </div>
+        <% } else { %>
+        <p>Test/X-ray info not available.</p>
+        <% } %>
+      <% }); %>
+    </div>
+    <% } %>
+
+    <!-- Package Details -->
+    <% if (booking.packageId) { %>
+    <div class="section">
+      <div class="section-title">Package Details</div>
+      <p><strong>Package:</strong> <%= booking.packageId.name %> (<%= booking.packageId.description %>)</p>
+      <p><strong>Total Tests Included:</strong> <%= booking.packageId.totalTestsIncluded %></p>
+    </div>
+    <% } %>
+
+    <!-- Payment Info -->
+    <div class="section">
+      <div class="section-title">Payment Info</div>
+      <p><strong>Total Price:</strong> ₹<%= booking.totalPrice %></p>
+      <p><strong>Discount:</strong> ₹<%= booking.discount %> <%= booking.couponCode ? `(${booking.couponCode})` : '' %></p>
+      <p><strong>Payable Amount:</strong> ₹<%= booking.payableAmount %></p>
+    </div>
+
+    <!-- Report URL -->
+    <% if (booking.reportURL) { %>
+      <p><strong>Report:</strong> <a class="button" href="<%= booking.reportURL %>" target="_blank">View Report</a></p>
+    <% } else { %>
+      <p><strong>Report:</strong> Not generated.</p>
+    <% } %>
+
+  </div>
+</body>
+</html>

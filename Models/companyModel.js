@@ -39,20 +39,22 @@ const companySchema = new mongoose.Schema(
     }],
 
 
-    staff: [{
-      _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
-      name: { type: String },
-      role: { type: String },
-      contact: { type: String },
-      email: { type: String },
-      dob: { type: Date },
-      gender: { type: String },
-      age: { type: Number },
-      address: { type: String },
-      profileImage: { type: String },
-      idImage: { type: String },
-      wallet_balance: { type: Number, default: 0 },
-    }],
+   staff: [{
+  _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
+  name: { type: String },
+  role: { type: String },
+  contact_number: { type: String },
+  email: { type: String },
+  dob: { type: Date },
+  gender: { type: String },
+  age: { type: Number },
+  address: { type: String },
+  profileImage: { type: String },
+  idImage: { type: String },
+  wallet_balance: { type: Number, default: 0 },
+  department: { type: String },
+  designation: { type: String }, // ✅ ADD THIS
+}],
     diagnostics: [
       {
         type: mongoose.Schema.Types.ObjectId,

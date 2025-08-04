@@ -1,0 +1,3 @@
+﻿name,description,price,offerPrice,reportHour,image
+Blood Test,Check for CBC,500,300,24,
+X-ray,Chest scan,800,500,48,http://example.com/xray.jpg

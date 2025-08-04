@@ -13,7 +13,17 @@ const staffSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+   idImage: {
+    type: String,
+    default: null,
+  },
   password: {
+    type: String,
+  },
+  gender: {
+    type: String,
+  },
+  department: {
     type: String,
   },
   age: {
@@ -35,27 +45,71 @@ const staffSchema = new mongoose.Schema({
       ref: 'Booking',
     },
   ],
-  wallet_balance: {
+  notifications: [
+  {
+    title: { type: String },
+    message: { type: String },
+    timestamp: { type: Date, default: Date.now },
+    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" }
+  }
+],
+   wallet_balance: {
     type: Number,
-    default: 0,
+    default: 0
   },
+  forTests: {
+    type: Number,
+    default: 0
+  },
+  forDoctors: {
+    type: Number,
+    default: 0
+  },
+  forPackages: {
+    type: Number,
+    default: 0
+  },
+  totalAmount: {
+    type: Number,
+    default: 0
+  },
+
+  // 👇 Logs (History)
   wallet_logs: [
     {
       type: {
         type: String,
         enum: ['credit', 'debit'],
       },
-      amount: {
+      forTests: {
+        type: Number,
+        default: 0
+      },
+      forDoctors: {
+        type: Number,
+        default: 0
+      },
+      forPackages: {
+        type: Number,
+        default: 0
+      },
+      totalAmount: {
         type: Number,
       },
-      from: String,
-      to: String,
+      from: {
+        type: String,
+        default: 'Admin'
+      },
       date: {
         type: Date,
-        default: Date.now,
-      },
-    },
+        default: Date.now
+      }
+    }
   ],
+  totalCoins: {
+    type: Number,
+    default: 0
+  },
 
   // myTest array stores diagnostic and test data
   myTest: [
@@ -76,6 +130,38 @@ const staffSchema = new mongoose.Schema({
       },
     },
   ],
+
+
+  myPackages: [
+  {
+    diagnosticId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Diagnostic',  // Reference Diagnostic model
+    },
+    packageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Package', // You can create a separate Package model or keep as ObjectId
+    },
+    packageName: {
+      type: String,
+    },
+    price: {
+      type: Number,
+    },
+    offerPrice: {
+      type: Number,
+    },
+    tests: [
+      {
+        test_name: String,
+        description: String,
+        image: String,
+        _id: mongoose.Schema.Types.ObjectId,
+      }
+    ],
+  },
+],
+
 
  doctorAppointments: [
     {
@@ -160,16 +246,16 @@ const staffSchema = new mongoose.Schema({
     },
   ],
 
-  addresses: [
-    {
-      street: { type: String },
-      city: { type: String },
-      state: { type: String },
-      country: { type: String },
-      postalCode: { type: String },
-      addressType: { type: String, enum: ['Home', 'Office', 'Other'], default: 'Home' },
-    },
-  ],
+  // addresses: [
+  //   {
+  //     street: { type: String },
+  //     city: { type: String },
+  //     state: { type: String },
+  //     country: { type: String },
+  //     postalCode: { type: String },
+  //     addressType: { type: String, enum: ['Home', 'Office', 'Other'], default: 'Home' },
+  //   },
+  // ],
 
  steps: [
   {

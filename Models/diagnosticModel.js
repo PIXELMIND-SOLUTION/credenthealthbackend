@@ -1,73 +1,63 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-// Define the schema for diagnostic tests
-const testSchema = new mongoose.Schema({
-  test_name: { type: String },
-  description: { type: String },
-  price: { type: Number },
-  offerPrice: { type: Number, default: function() { return this.price; } },  // Default offerPrice is the same as price
-  image: { type: String },  // URL or path to the test image (optional)
-});
-
-// Define the schema for diagnostic center
 const diagnosticSchema = new mongoose.Schema({
-  name: { type: String },
-  image: { type: String },  // Image URL or path
-  address: { type: String },
+  name: String,
+  email: String,
+  password: String,
+  phone: String,
+  address: String,
+  image: { type: String, default: null },
+  centerType: String,
+  methodology: String,
+  pathologyAccredited: String,
+  gstNumber: String,
+  centerStrength: Number,
+  description: String,
 
-  // Additional fields for the diagnostic center
-  centerType: { type: String },
-  email: { type: String },
-  phone: { type: String },
-  gstNumber: { type: String },
-  centerStrength: { type: Number },
-  country: { type: String },
-  state: { type: String },
-  city: { type: String },
-  pincode: { type: String },
+  latitude: Number,
+  longitude: Number,
+  country: String,
+  state: String,
+  city: String,
+  pincode: String,
 
-  // Contact person(s) array
+  visitType: { type: String, enum: ["Home Collection", "Visit Center", "Both"] },
+
+  network: { type: String, enum: ["Single", "Chain", 'Independent', 'Standalone'], default: "Single" },
+
   contactPersons: [
     {
       name: { type: String },
       designation: { type: String },
       gender: { type: String },
       contactEmail: { type: String },
-      contactNumber: { type: String },
+      contactNumber: { type: String }
     }
   ],
 
-   // Direct tests (optional)
-   tests: [
-    {
-      test_name: { type: String },
-      description: { type: String },
-      image: { type: String }
-    }
-  ],
-  // Direct packages with tests inside
-  packages: [
-    {
-      packageName: { type: String },
-      price: { type: Number },
-      offerPrice: { type: Number, default: function() { return this.price; } },
-      tests: [
-        {
-          test_name: { type: String },
-          description: { type: String },
-          image: { type: String }
-        }
-      ]
-    }
-  ],
-
-  // Docs & password
-  documents: [{ type: String }],
-  password: { type: String },
-
-  // Tests offered by center
-  tests: [testSchema],
+  homeCollectionSlots: [
+  {
+    day: { type: String },
+    date: { type: String },
+    timeSlot: { type: String },
+    type: { type: String, default: "Home Collection" },
+    isBooked: { type: Boolean, default: false }  // ✅ Add this
+  }
+],
+centerVisitSlots: [
+  {
+    day: { type: String },
+    date: { type: String },
+    timeSlot: { type: String },
+    type: { type: String, default: "Center Visit" },
+    isBooked: { type: Boolean, default: false }  // ✅ Add this
+  }
+],
+  tests: [{ type: mongoose.Schema.Types.ObjectId, ref: "Test" }],
+  packages: [{ type: mongoose.Schema.Types.ObjectId, ref: "Package" }],
+  scans: [{ type: mongoose.Schema.Types.ObjectId, ref: "Xray" }],
 }, { timestamps: true });
 
-const Diagnostic = mongoose.model('Diagnostic', diagnosticSchema);
+const Diagnostic = mongoose.model("Diagnostic", diagnosticSchema);
+
 export default Diagnostic;
